@@ -168,6 +168,21 @@
 </div>
 
 <script>
+  // Service Worker Registrierung (muss ganz oben im Skript-Block stehen)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(registration => {
+          console.log('ServiceWorker registration successful with scope: ', registration.scope);
+        })
+        .catch(err => {
+          console.log('ServiceWorker registration failed: ', err);
+          // Diesen Fehler in der Konsole überprüfen, wenn etwas schiefgeht!
+        });
+    });
+  }
+
+  // Ab hier beginnt der Rest deiner App-Logik
   if ('Notification' in window) {
     Notification.requestPermission();
   }
@@ -313,13 +328,11 @@
     });
 
     fillInput.addEventListener('input', (e) => {
-      // *** KORREKTUR HIER: Füllstand direkt bei Eingabe aktualisieren ***
       let val = parseInt(e.target.value);
       if (isNaN(val)) val = 0;
       val = Math.min(machine.boxCapacity, Math.max(0, val));
-      machine.currentFill = val; // Setzt den Wert im machine-Objekt
-      machine.lastUpdate = Date.now(); // Auch lastUpdate setzen, damit die Zeitberechnung weiterläuft
-      // Keine saveMachines() hier, da es zu häufig aufgerufen wird. Das passiert im 'blur' Event.
+      machine.currentFill = val; 
+      machine.lastUpdate = Date.now(); 
     });
 
     fillLabel.appendChild(fillInput);
@@ -527,7 +540,6 @@
       }
 
       // --- Visuelle Anzeige (Restzeit & Schichtinformation) ---
-      // Die Restzeit für die aktuelle Kiste wird von der aktuellen Zeit abwärts gezählt
       const partsPerSecond = machine.cavities / machine.cycleTime;
       const secondsLeftForCurrentBox = (machine.boxCapacity - machine.currentFill) / partsPerSecond;
       
