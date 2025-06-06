@@ -1,4 +1,4 @@
-const CACHE_NAME = 'maschine-timer-app-v5'; // <-- WICHTIG: Erhöhe diesen Namen bei jeder Änderung!
+const CACHE_NAME = 'maschine-timer-app-v6'; // <-- WICHTIG: Erhöhe diesen Namen bei jeder Änderung!
 const urlsToCache = [
   './', 
   './index.html',
