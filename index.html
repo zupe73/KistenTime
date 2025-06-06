@@ -313,7 +313,13 @@
     });
 
     fillInput.addEventListener('input', (e) => {
-      machine.lastUpdate = Date.now();
+      // *** KORREKTUR HIER: Füllstand direkt bei Eingabe aktualisieren ***
+      let val = parseInt(e.target.value);
+      if (isNaN(val)) val = 0;
+      val = Math.min(machine.boxCapacity, Math.max(0, val));
+      machine.currentFill = val; // Setzt den Wert im machine-Objekt
+      machine.lastUpdate = Date.now(); // Auch lastUpdate setzen, damit die Zeitberechnung weiterläuft
+      // Keine saveMachines() hier, da es zu häufig aufgerufen wird. Das passiert im 'blur' Event.
     });
 
     fillLabel.appendChild(fillInput);
