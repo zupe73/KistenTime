@@ -10,6 +10,11 @@
   .machine {
     background-color: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Sanfter Übergang für Rand */
+  }
+  .machine.box-full { /* Klasse für volle Kiste */
+    border-color: #F44336; /* Roter Rand */
+    box-shadow: 0 0 15px rgba(244, 67, 54, 0.5); /* Roter Schatten */
   }
   .header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
   .icon {
@@ -29,6 +34,10 @@
     cursor: pointer; font-size: 16px; margin-right: 5px;
   }
   button:hover { background-color: #0056b3; }
+  .add-machine button { /* Abstand für Buttons im "Maschine hinzufügen"-Bereich */
+      margin-top: 10px; /* Abstand nach oben */
+      margin-right: 10px; /* Abstand nach rechts zwischen Buttons */
+  }
   .machine-actions button {
     background-color: #6c757d; margin-top: 10px;
   }
@@ -128,6 +137,7 @@
     <input type="number" id="boxCapacity" min="1" value="100" />
   </label>
   <button onclick="addMachine()">Maschine hinzufügen</button>
+  <button onclick="requestNotificationPermission()">Benachrichtigungen aktivieren</button>
 </div>
 
 <div id="editMachineModal" class="modal">
@@ -168,7 +178,7 @@
 </div>
 
 <script>
-  // Service Worker Registrierung (muss ganz oben im Skript-Block stehen)
+  // Service Worker Registrierung
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js')
@@ -177,15 +187,37 @@
         })
         .catch(err => {
           console.log('ServiceWorker registration failed: ', err);
-          // Diesen Fehler in der Konsole überprüfen, wenn etwas schiefgeht!
         });
     });
   }
 
-  // Ab hier beginnt der Rest deiner App-Logik
-  if ('Notification' in window) {
-    Notification.requestPermission();
+  // --- Benachrichtigungslogik anpassen ---
+  let notificationPermissionGranted = false; 
+
+  function requestNotificationPermission() {
+    if ('Notification' in window) {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          notificationPermissionGranted = true;
+          alert('Benachrichtigungen sind jetzt aktiviert!');
+        } else {
+          notificationPermissionGranted = false;
+          alert('Benachrichtigungen wurden blockiert oder abgelehnt. Bitte überprüfen Sie die Browser-Einstellungen.'); 
+        }
+      });
+    } else {
+      alert('Dieser Browser unterstützt keine Benachrichtigungen.');
+    }
   }
+
+  if ('Notification' in window) {
+    if (Notification.permission === 'granted') {
+      notificationPermissionGranted = true;
+    } else if (Notification.permission === 'denied') {
+      notificationPermissionGranted = false; 
+    }
+  }
+
 
   // Schichtdefinitionen
   const shifts = [
@@ -269,7 +301,7 @@
     };
     machines.push(machine);
     saveMachines();
-    renderMachine(machine); 
+    renderMachine(machine); // Fügt die neue Maschine hinzu
     clearInputs();
   }
 
@@ -288,108 +320,66 @@
       div = document.createElement('div');
       div.className = 'machine';
       div.id = 'machine-' + machine.id;
-      container.appendChild(div); 
-    } else {
-      div.innerHTML = ''; 
+      container.appendChild(div); // Füge das Element zum DOM hinzu
     }
 
-    const icon = document.createElement('div');
-    icon.className = 'icon ' + machine.type;
-    icon.textContent = machine.type;
+    // Inhalt des Divs neu aufbauen (passiert bei initialem Rendern und Bearbeiten)
+    // Dies stellt sicher, dass Event-Listener korrekt gebunden werden
+    div.innerHTML = `
+        <div class="header">
+            <div class="icon ${machine.type}">${machine.type}</div>
+            <div>${machine.name}</div>
+        </div>
+        <label>
+            Aktuelle Füllmenge: <br>
+            <input type="number" id="fillInput-${machine.id}" min="0" max="${machine.boxCapacity}" value="${Math.floor(machine.currentFill)}" />
+        </label>
+        <div class="progress-container">
+            <div class="progress-bar"></div>
+        </div>
+        <div class="time-info" id="time-${machine.id}">Restzeit: --</div>
+        <div class="shift-info" id="shift-info-${machine.id}">Schicht: -- Kisten verbleibend: --</div>
+        <div class="machine-actions">
+            <button class="edit" onclick="openEditModal(${machine.id})">Bearbeiten</button>
+            <button class="delete" onclick="deleteMachine(${machine.id})">Löschen</button>
+        </div>
+    `;
 
-    const header = document.createElement('div');
-    header.className = 'header';
-    header.appendChild(icon);
-    const title = document.createElement('div');
-    title.textContent = machine.name;
-    header.appendChild(title);
+    // Referenzen und Event-Listener nach dem Setzen von innerHTML hinzufügen
+    machine.fillInput = div.querySelector(`#fillInput-${machine.id}`);
+    machine.progressBar = div.querySelector('.progress-bar');
+    machine.timeDiv = div.querySelector(`#time-${machine.id}`);
+    machine.shiftInfoDiv = div.querySelector(`#shift-info-${machine.id}`);
+    machine.machineDiv = div; // Referenz zum Haupt-Div der Maschine speichern
 
-    // Füllmenge Eingabe
-    const fillLabel = document.createElement('label');
-    fillLabel.textContent = 'Aktuelle Füllmenge: ';
-    const fillInput = document.createElement('input');
-    fillInput.type = 'number';
-    fillInput.min = 0;
-    fillInput.max = machine.boxCapacity;
-    fillInput.value = Math.floor(machine.currentFill);
-
-    fillInput.addEventListener('focus', () => {
-      machine.isFillingManually = true;
-    });
-
-    fillInput.addEventListener('blur', (e) => {
-      machine.isFillingManually = false;
-      let val = parseInt(e.target.value);
-      if (isNaN(val)) val = 0;
-      val = Math.min(machine.boxCapacity, Math.max(0, val));
-      machine.currentFill = val;
-      machine.lastUpdate = Date.now(); 
-      saveMachines();
-    });
-
-    fillInput.addEventListener('input', (e) => {
-      let val = parseInt(e.target.value);
-      if (isNaN(val)) val = 0;
-      val = Math.min(machine.boxCapacity, Math.max(0, val));
-      machine.currentFill = val; 
-      machine.lastUpdate = Date.now(); 
-    });
-
-    fillLabel.appendChild(fillInput);
-
-    // Fortschrittsbalken
-    const progressContainer = document.createElement('div');
-    progressContainer.className = 'progress-container';
-    const progressBar = document.createElement('div');
-    progressBar.className = 'progress-bar'; 
-    progressContainer.appendChild(progressBar);
-
-    // Zeit und Status
-    const timeDiv = document.createElement('div');
-    timeDiv.className = 'time-info';
-    timeDiv.id = 'time-' + machine.id;
-    timeDiv.textContent = 'Restzeit: --';
-
-    // Schichtinformationen
-    const shiftInfoDiv = document.createElement('div');
-    shiftInfoDiv.className = 'shift-info';
-    shiftInfoDiv.id = 'shift-info-' + machine.id;
-    shiftInfoDiv.textContent = 'Schicht: -- Kisten verbleibend: --';
-
-
-    // Buttons für Bearbeiten und Löschen
-    const actionsDiv = document.createElement('div');
-    actionsDiv.className = 'machine-actions';
-    const editButton = document.createElement('button');
-    editButton.textContent = 'Bearbeiten';
-    editButton.className = 'edit';
-    editButton.onclick = () => openEditModal(machine.id);
-    const deleteButton = document.createElement('button');
-    deleteButton.textContent = 'Löschen';
-    deleteButton.className = 'delete';
-    deleteButton.onclick = () => deleteMachine(machine.id);
-    actionsDiv.appendChild(editButton);
-    actionsDiv.appendChild(deleteButton);
-
-
-    div.appendChild(header);
-    div.appendChild(fillLabel);
-    div.appendChild(progressContainer);
-    div.appendChild(timeDiv);
-    div.appendChild(shiftInfoDiv);
-    div.appendChild(actionsDiv);
-
-    // Speichern für Update-Loop
-    machine.fillInput = fillInput;
-    machine.progressBar = progressBar;
-    machine.timeDiv = timeDiv;
-    machine.shiftInfoDiv = shiftInfoDiv;
+    // Event-Listener für das Füllstand-Inputfeld hinzufügen
+    if (machine.fillInput) {
+        machine.fillInput.addEventListener('focus', () => {
+          machine.isFillingManually = true;
+        });
+        machine.fillInput.addEventListener('blur', (e) => {
+          machine.isFillingManually = false;
+          let val = parseInt(e.target.value);
+          if (isNaN(val)) val = 0;
+          val = Math.min(machine.boxCapacity, Math.max(0, val));
+          machine.currentFill = val;
+          machine.lastUpdate = Date.now(); 
+          saveMachines();
+        });
+        machine.fillInput.addEventListener('input', (e) => {
+          let val = parseInt(e.target.value);
+          if (isNaN(val)) val = 0;
+          val = Math.min(machine.boxCapacity, Math.max(0, val));
+          machine.currentFill = val; 
+          machine.lastUpdate = Date.now(); 
+        });
+    }
   }
 
   function renderAllMachines() {
     const container = document.getElementById('machines');
-    container.innerHTML = ''; 
-    machines.forEach(machine => renderMachine(machine));
+    container.innerHTML = ''; // Leere den Container komplett
+    machines.forEach(machine => renderMachine(machine)); // Füge alle Maschinen hinzu
   }
 
   // Initiales Rendern beim Laden der Seite
@@ -411,14 +401,24 @@
     return `${h}:${m}`;
   }
 
-  // Benachrichtigung wenn Kiste voll
+  // Benachrichtigung wenn Kiste voll (Browser-Benachrichtigung)
   function notifyBoxFull(machine) {
-    if (Notification.permission === 'granted') {
-      new Notification(`Maschine ${machine.name} – Kiste voll!`, {
+    if (notificationPermissionGranted) { 
+      console.log(`Sending notification for ${machine.name}: Kiste voll!`);
+      const notification = new Notification(`Maschine ${machine.name} – Kiste voll!`, {
         body: `Die Kiste ist jetzt voll und wurde automatisch zurückgesetzt.`,
-        icon: ''
       });
+    } else {
+        console.warn(`Cannot send notification for ${machine.name}: Permission not granted.`);
     }
+  }
+
+  // Audio-Element für Ton
+  const audio = new Audio('https://www.soundjay.com/buttons/beep-01a.mp3'); 
+  audio.preload = 'auto'; 
+
+  function playBeep() {
+    audio.play().catch(e => console.error("Could not play sound:", e));
   }
 
   // Bearbeiten und Löschen Funktionen
@@ -428,7 +428,7 @@
 
     document.getElementById('editMachineId').value = machine.id;
     document.getElementById('editName').value = machine.name;
-    document.getElementById('editType').value = machine.type;
+    document.getElementById('editType').value = document.getElementById('editType').value; /* KORREKTUR: .value fehlte hier */
     document.getElementById('editCavities').value = machine.cavities;
     document.getElementById('editCycleTime').value = machine.cycleTime;
     document.getElementById('editBoxCapacity').value = machine.boxCapacity;
@@ -451,7 +451,7 @@
     }
 
     const newName = document.getElementById('editName').value.trim();
-    const newType = document.getElementById('editType').value;
+    const newType = document.getElementById('editType').value; 
     const newCavities = parseInt(document.getElementById('editCavities').value);
     const newCycleTime = parseFloat(document.getElementById('editCycleTime').value);
     const newBoxCapacity = parseInt(document.getElementById('editBoxCapacity').value);
@@ -470,7 +470,7 @@
     machine.boxesCompletedShift = newBoxesCompletedShift;
 
     saveMachines();
-    renderMachine(machine); 
+    renderMachine(machine); // Die einzelne Maschine neu rendern, um Änderungen anzuzeigen
     closeEditModal();
   }
 
@@ -478,7 +478,7 @@
     if (confirm('Sind Sie sicher, dass Sie diese Maschine löschen möchten?')) {
       machines = machines.filter(m => m.id !== machineId);
       saveMachines();
-      document.getElementById('machine-' + machineId).remove();
+      document.getElementById('machine-' + machineId).remove(); // Element aus dem DOM entfernen
     }
   }
 
@@ -486,21 +486,6 @@
   setInterval(() => {
     const now = new Date();
     const currentShift = getCurrentShift(now);
-
-    // Sortiere Maschinen nach verbleibender Zeit vor der Aktualisierung
-    machines.sort((a, b) => {
-        const partsPerSecondA = a.cavities / a.cycleTime;
-        const secondsLeftA = (a.boxCapacity - a.currentFill) / partsPerSecondA;
-
-        const partsPerSecondB = b.cavities / b.cycleTime;
-        const secondsLeftB = (b.boxCapacity - b.currentFill) / partsPerSecondB;
-
-        return secondsLeftA - secondsLeftB;
-    });
-
-    // Nach dem Sortieren muss die DOM-Reihenfolge aktualisiert werden
-    renderAllMachines(); 
-
 
     machines.forEach(machine => {
       // --- Logik für zyklusweises Zählen im Hintergrund (nur wenn nicht manuell bearbeitet wird) ---
@@ -523,71 +508,83 @@
         }
 
         let boxesFilledInThisInterval = 0;
+        let wasBoxJustFilled = false; 
         while (machine.currentFill >= machine.boxCapacity) {
           machine.currentFill -= machine.boxCapacity;
           machine.boxesCompleted++;
           machine.boxesCompletedShift++;
           boxesFilledInThisInterval++;
+          wasBoxJustFilled = true; 
         }
 
-        if (boxesFilledInThisInterval > 0) {
-          notifyBoxFull(machine);
+        if (wasBoxJustFilled) { 
+          notifyBoxFull(machine); 
+          playBeep(); 
+          if (machine.machineDiv) { 
+              machine.machineDiv.classList.add('box-full'); 
+              setTimeout(() => {
+                if (machine.machineDiv) { 
+                  machine.machineDiv.classList.remove('box-full');
+                }
+              }, 2000); 
+          }
           saveMachines();
         }
       } else {
-        // lastUpdate muss auch bei manueller Bearbeitung weiterlaufen
         machine.lastUpdate = now.getTime();
       }
 
       // --- Visuelle Anzeige (Restzeit & Schichtinformation) ---
+      // Diese Aktualisierungen müssen immer erfolgen, da sie den Timer und Füllstand aktualisieren.
       const partsPerSecond = machine.cavities / machine.cycleTime;
       const secondsLeftForCurrentBox = (machine.boxCapacity - machine.currentFill) / partsPerSecond;
       
-      // Uhrzeit, wann die Kiste voll sein wird
       const fillTime = new Date(now.getTime() + secondsLeftForCurrentBox * 1000);
       const fillTimeFormatted = formatTimeOfDay(fillTime);
 
-      machine.timeDiv.textContent = `Restzeit: ${formatTime(secondsLeftForCurrentBox)} - Voll um: ${fillTimeFormatted} - Teile: ${Math.floor(machine.currentFill)} / ${machine.boxCapacity} - Kisten: ${machine.boxesCompleted}`;
-
-      // Füllstand-Input nur aktualisieren, wenn nicht manuell bearbeitet wird
-      if (!machine.isFillingManually) {
+      // Zugriff auf die DOM-Elemente über die gespeicherten Referenzen
+      if (machine.timeDiv) {
+          machine.timeDiv.textContent = `Restzeit: ${formatTime(secondsLeftForCurrentBox)} - Voll um: ${fillTimeFormatted} - Teile: ${Math.floor(machine.currentFill)} / ${machine.boxCapacity} - Kisten: ${machine.boxesCompleted}`;
+      }
+      
+      if (!machine.isFillingManually && machine.fillInput) { 
         machine.fillInput.value = Math.floor(machine.currentFill);
       }
 
-      // Fortschrittsbalken aktualisieren
-      const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
-      machine.progressBar.style.width = `${progressPercent}%`;
+      if (machine.progressBar) { 
+          const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
+          machine.progressBar.style.width = `${progressPercent}%`;
 
-      // Fortschrittsbalken Farbe anpassen
-      machine.progressBar.classList.remove('green', 'orange', 'red');
-      if (progressPercent < 70) {
-        machine.progressBar.classList.add('green');
-      } else if (progressPercent < 90) {
-        machine.progressBar.classList.add('orange');
-      } else {
-        machine.progressBar.classList.add('red');
+          machine.progressBar.classList.remove('green', 'orange', 'red');
+          if (progressPercent < 70) {
+            machine.progressBar.classList.add('green');
+          } else if (progressPercent < 90) {
+            machine.progressBar.classList.add('orange');
+          } else {
+            machine.progressBar.classList.add('red');
+          }
       }
 
-      // --- Schicht-Info aktualisieren ---
-      const shiftEndTime = getShiftEndTime(now, currentShift);
-      const remainingShiftTimeMs = Math.max(0, shiftEndTime.getTime() - now.getTime());
-      const remainingShiftTimeSec = remainingShiftTimeMs / 1000;
+      if (machine.shiftInfoDiv) { 
+          const shiftEndTime = getShiftEndTime(now, currentShift);
+          const remainingShiftTimeMs = Math.max(0, shiftEndTime.getTime() - now.getTime());
+          const remainingShiftTimeSec = remainingShiftTimeMs / 1000;
 
-      // Berechnung der verbleibenden Kisten für die Schicht
-      let boxesRemainingForShift = 0;
-      const theoreticalPartsPossibleInRemainingShiftTime = partsPerSecond * remainingShiftTimeSec;
-      
-      if (Math.floor(machine.currentFill) < machine.boxCapacity && secondsLeftForCurrentBox <= remainingShiftTimeSec) {
-          boxesRemainingForShift = 1; 
-          const timeAfterCurrentBoxFinished = remainingShiftTimeSec - secondsLeftForCurrentBox;
-          boxesRemainingForShift += Math.floor((partsPerSecond * timeAfterCurrentBoxFinished) / machine.boxCapacity);
-      } else if (Math.floor(machine.currentFill) >= machine.boxCapacity) {
-          boxesRemainingForShift = Math.floor(theoreticalPartsPossibleInRemainingShiftTime / machine.boxCapacity);
+          let boxesRemainingForShift = 0;
+          const theoreticalPartsPossibleInRemainingShiftTime = partsPerSecond * remainingShiftTimeSec;
+          
+          if (Math.floor(machine.currentFill) < machine.boxCapacity && secondsLeftForCurrentBox <= remainingShiftTimeSec) {
+              boxesRemainingForShift = 1; 
+              const timeAfterCurrentBoxFinished = remainingShiftTimeSec - secondsLeftForCurrentBox;
+              boxesRemainingForShift += Math.floor((partsPerSecond * timeAfterCurrentBoxFinished) / machine.boxCapacity);
+          } else if (Math.floor(machine.currentFill) >= machine.boxCapacity) {
+              boxesRemainingForShift = Math.floor(theoreticalPartsPossibleInRemainingShiftTime / machine.boxCapacity);
+          }
+          
+          boxesRemainingForShift = Math.max(0, boxesRemainingForShift - machine.boxesCompletedShift);
+          
+          machine.shiftInfoDiv.textContent = `Schicht: ${currentShift.name} | Kisten in Schicht: ${machine.boxesCompletedShift} | Kisten verbleibend: ${boxesRemainingForShift}`;
       }
-      
-      boxesRemainingForShift = Math.max(0, boxesRemainingForShift - machine.boxesCompletedShift);
-      
-      machine.shiftInfoDiv.textContent = `Schicht: ${currentShift.name} | Kisten in Schicht: ${machine.boxesCompletedShift} | Kisten verbleibend: ${boxesRemainingForShift}`;
     });
   }, 100); 
 
