@@ -1,10 +1,12 @@
-// sw.js
+// sw.js - FINALE VERSION MIT KOMPATIBILITÄTS-BIBLIOTHEKEN
 
-// Firebase v11 SDKs für den Service Worker importieren
-importScripts("https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js");
-importScripts("https://www.gstatic.com/firebasejs/11.9.0/firebase-messaging.js");
+// ======================================================================
+// KORREKTUR HIER: Wir verwenden die "-compat" Versionen der Skripte
+// ======================================================================
+importScripts("https://www.gstatic.com/firebasejs/11.9.0/firebase-app-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/11.9.0/firebase-messaging-compat.js");
 
-// HIER IHRE FIREBASE-KONFIGURATION ERNEUT EINFÜGEN
+// Ihre Firebase-Konfiguration
 const firebaseConfig = {
     apiKey: "AIzaSyCptp989CDyP2I6MrwXdM14WgFvzadEF5k",
     authDomain: "kistentimer.firebaseapp.com",
@@ -15,13 +17,10 @@ const firebaseConfig = {
 };
 
 // Firebase im Service Worker initialisieren
-const app = firebase.initializeApp(firebaseConfig);
+firebase.initializeApp(firebaseConfig);
 
-// ======================================================================
-// KORREKTUR HIER: So wird der Messaging-Dienst korrekt geholt
-// ======================================================================
+// Der Messaging-Dienst. Mit den "-compat" Skripten ist dieser Aufruf korrekt.
 const messaging = firebase.messaging();
-
 
 // Handler für ankommende Push-Nachrichten im Hintergrund
 messaging.onBackgroundMessage((payload) => {
@@ -38,7 +37,7 @@ messaging.onBackgroundMessage((payload) => {
 
 
 // CACHING-LOGIK
-const CACHE_NAME = 'kistentimer-cache-v15'; // WICHTIG: Neue Version!
+const CACHE_NAME = 'kistentimer-cache-v16'; // WICHTIG: Neue Version!
 
 const urlsToCache = [
   './',
@@ -49,10 +48,12 @@ const urlsToCache = [
   'https://www.soundjay.com/buttons/beep-01a.mp3' 
 ];
 
-// ... Ihr `install`, `fetch` und `activate` Code bleibt hier unverändert ...
 self.addEventListener('install', event => { 
     event.waitUntil(
-        caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
+        caches.open(CACHE_NAME).then(cache => {
+            console.log('Service Worker Caching App Shell...');
+            return cache.addAll(urlsToCache);
+        })
     );
 });
 
