@@ -111,7 +111,7 @@
     const app = initializeApp(firebaseConfig);
     const messaging = getMessaging(app);
 
-// --- VERBESSERTE PUSH-LOGIK ZUR FEHLERSUCHE ---
+// --- FINALE, SAUBERE PUSH-LOGIK ---
 window.initPushNotifications = function() {
     console.log('[1] Button geklickt. Fordere Erlaubnis an...');
     Notification.requestPermission().then((permission) => {
@@ -121,14 +121,10 @@ window.initPushNotifications = function() {
             navigator.serviceWorker.ready.then((registration) => {
                 console.log('[3] Service Worker ist "ready". Versuche jetzt, den Token zu holen.');
                 
-                // BITTE NOCHMALS PRÜFEN: Ist hier Ihr echter VAPID-Key eingefügt?
+                // Ihr korrekter VAPID-Key
                 const vapidKey = 'BMehjID94jiDYaX4StW5gIoV9Ct9PrMqT3gZtoyl5mfOE4aiOyINP6n0D4RmHQvoJGi3Ll0gPPh0wYHomQkZmuU';
-                
-                if (vapidKey === 'BMehjID94jiDYaX4StW5gIoV9Ct9PrMqT3gZtoyl5mfOE4aiOyINP6n0D4RmHQvoJGi3Ll0gPPh0wYHomQkZmuU' || vapidKey.length < 50) {
-                    console.error('FEHLER: Es wurde kein gültiger VAPID-Key eingefügt!');
-                    alert('FEHLER: Bitte den VAPID-Key in der index.html einfügen.');
-                    return; // Bricht hier ab
-                }
+
+                // Die fehlerhafte if-Bedingung wurde entfernt. Jetzt geht es direkt weiter.
 
                 getToken(messaging, { 
                     vapidKey: vapidKey,
@@ -138,15 +134,11 @@ window.initPushNotifications = function() {
                         console.log('[4] ERFOLG! Firebase Push Token:', currentToken);
                         alert('Push-Token erfolgreich erhalten! Siehe Konsole.');
                     } else {
-                        // Dieser Fall tritt ein, wenn alles klappt, aber Firebase aus irgendeinem Grund keinen Token ausstellt.
                         console.warn('[4] FEHLSCHLAG: Kein Token erhalten, obwohl alles gut aussah.');
                     }
                 }).catch((err) => {
-                    // Dieser Fehler tritt auf, wenn getToken selbst fehlschlägt.
                     console.error('[4] FEHLSCHLAG beim Holen des Tokens:', err);
                 });
-            }).catch(err => {
-                 console.error('[X] FEHLER: Warten auf Service Worker .ready ist fehlgeschlagen:', err);
             });
         } else {
             console.warn('[2] Erlaubnis NICHT erteilt. Status:', permission);
