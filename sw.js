@@ -26,17 +26,23 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
   console.log('[sw.js] Received background message ', payload);
-  
-  const notificationTitle = payload.notification.title;
-  const notificationOptions = {
-    body: payload.notification.body,
-    icon: './icons/icon-192x192.png',
-    vibrate: [200, 100, 200], // Vibration für mobile Geräte
-    // NEU: Wir fügen Daten zur Benachrichtigung hinzu
-    data: {
-      url: 'https://zupe73.github.io/KistenTime/' // Die URL, die bei Klick geöffnet werden soll. '/' ist die Startseite.
-    }
-  };
+
+  // Nur anzeigen, wenn KEINE automatische Notification durch FCM erfolgt
+  if (!payload.notification) {
+    const notificationTitle = payload.data.title || 'KistenTimer';
+    const notificationOptions = {
+      body: payload.data.body || 'Eine Maschine nähert sich der Kistenfüllung!',
+      icon: './icons/icon-192x192.png',
+      vibrate: [200, 100, 200],
+      data: {
+        url: 'https://zupe73.github.io/KistenTime/'
+      }
+    };
+
+    self.registration.showNotification(notificationTitle, notificationOptions);
+  }
+});
+
 
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
