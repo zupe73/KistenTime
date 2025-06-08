@@ -16,26 +16,29 @@ const firebaseConfig = {
 
 // Firebase im Service Worker initialisieren
 const app = firebase.initializeApp(firebaseConfig);
-const messaging = firebase.getMessaging(app);
+
+// ======================================================================
+// KORREKTUR HIER: So wird der Messaging-Dienst korrekt geholt
+// ======================================================================
+const messaging = firebase.messaging();
+
 
 // Handler für ankommende Push-Nachrichten im Hintergrund
 messaging.onBackgroundMessage((payload) => {
   console.log('[sw.js] Received background message ', payload);
   
-  // payload.notification enthält die Daten, die wir vom Server senden
   const notificationTitle = payload.notification.title;
   const notificationOptions = {
     body: payload.notification.body,
     icon: './icons/icon-192x192.png'
   };
 
-  // Die Benachrichtigung anzeigen
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
 
 // CACHING-LOGIK
-const CACHE_NAME = 'kistentimer-cache-v14'; // Neue Version
+const CACHE_NAME = 'kistentimer-cache-v15'; // WICHTIG: Neue Version!
 
 const urlsToCache = [
   './',
@@ -46,13 +49,10 @@ const urlsToCache = [
   'https://www.soundjay.com/buttons/beep-01a.mp3' 
 ];
 
-self.addEventListener('install', event => {
+// ... Ihr `install`, `fetch` und `activate` Code bleibt hier unverändert ...
+self.addEventListener('install', event => { 
     event.waitUntil(
-        caches.open(CACHE_NAME)
-          .then(cache => {
-            console.log('Opened cache and caching app shell');
-            return cache.addAll(urlsToCache);
-          })
+        caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
     );
 });
 
@@ -60,7 +60,6 @@ self.addEventListener('fetch', event => {
     event.respondWith(
         caches.match(event.request)
           .then(response => {
-            // Cache hit - return response
             if (response) {
               return response;
             }
