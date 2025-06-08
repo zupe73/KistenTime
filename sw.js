@@ -34,7 +34,7 @@ messaging.onBackgroundMessage((payload) => {
     vibrate: [200, 100, 200], // Vibration für mobile Geräte
     // NEU: Wir fügen Daten zur Benachrichtigung hinzu
     data: {
-      url: '/' // Die URL, die bei Klick geöffnet werden soll. '/' ist die Startseite.
+      url: 'https://zupe73.github.io/KistenTime/' // Die URL, die bei Klick geöffnet werden soll. '/' ist die Startseite.
     }
   };
 
