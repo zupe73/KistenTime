@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>KistenTimer v1</title>
+<title>KistenTimer v2 - Mit Push</title>
 <style>
   body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
   h1, h2 { color: #0056b3; }
   .machine {
     background-color: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Sanfter Übergang für Rand */
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
   }
-  .machine.box-full { /* Klasse für volle Kiste */
-    border-color: #F44336; /* Roter Rand */
-    box-shadow: 0 0 15px rgba(244, 67, 54, 0.5); /* Roter Schatten */
+  .machine.box-full {
+    border-color: #F44336;
+    box-shadow: 0 0 15px rgba(244, 67, 54, 0.5);
   }
   .header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
   .icon {
@@ -22,122 +22,55 @@
     border-radius: 50%; color: white; text-align: center; line-height: 30px;
     display: flex; align-items: center; justify-content: center;
   }
-  .E { background: #4CAF50; } /* Grün */
-  .KM { background: #2196F3; } /* Blau */
-  .A { background: #F44336; } /* Rot */
+  .E { background: #4CAF50; } .KM { background: #2196F3; } .A { background: #F44336; }
   input[type="text"], input[type="number"], select {
     width: calc(100% - 10px); padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;
   }
-  input[type="number"] { width: 80px; } /* Speziell für Zahlenfelder */
+  input[type="number"] { width: 80px; }
   button {
     background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px;
-    cursor: pointer; font-size: 16px; margin-right: 5px;
+    cursor: pointer; font-size: 16px; margin-right: 5px; margin-top: 10px;
   }
   button:hover { background-color: #0056b3; }
-  .add-machine button { /* Abstand für Buttons im "Maschine hinzufügen"-Bereich */
-      margin-top: 10px; /* Abstand nach oben */
-      margin-right: 10px; /* Abstand nach rechts zwischen Buttons */
-  }
-  .machine-actions button {
-    background-color: #6c757d; margin-top: 10px;
-  }
+  .machine-actions button { background-color: #6c757d; }
   .machine-actions button.delete { background-color: #dc3545; }
-  .machine-actions button.delete:hover { background-color: #c82333; }
   .machine-actions button.edit { background-color: #ffc107; color: #333; }
-  .machine-actions button.edit:hover { background-color: #e0a800; }
-
   .add-machine {
     background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     margin-top: 20px;
   }
-  .time-info { margin-top: 8px; font-weight: bold; color: #007bff; }
-  .shift-info { font-size: 0.9em; color: #555; margin-top: 5px; }
+  .time-info, .shift-info { margin-top: 8px; }
   label { display: block; margin-bottom: 6px; font-weight: bold; }
-  .progress-container {
-    width: 100%; height: 15px; background: #eee; border-radius: 8px; margin-top: 6px;
-    overflow: hidden;
-  }
-  /* Grundfarbe des Fortschrittsbalkens, wird von JS überschrieben */
-  .progress-bar {
-    height: 100%; width: 0%; transition: width 0.3s ease;
-    background: #4CAF50; /* Standard: Grün */
-  }
-  /* Farben für den Fortschrittsbalken */
-  .progress-bar.green { background: #4CAF50; }
-  .progress-bar.orange { background: #FF9800; }
-  .progress-bar.red { background: #F44336; }
-
-  /* Modal Styling */
-  .modal {
-    display: none; /* Hidden by default */
-    position: fixed; /* Stay in place */
-    z-index: 1; /* Sit on top */
-    left: 0;
-    top: 0;
-    width: 100%; /* Full width */
-    height: 100%; /* Full height */
-    overflow: auto; /* Enable scroll if needed */
-    background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
-  }
-  .modal-content {
-    background-color: #fefefe;
-    margin: 15% auto; /* 15% from the top and centered */
-    padding: 20px;
-    border: 1px solid #888;
-    width: 80%; /* Could be more or less, depending on screen size */
-    max-width: 500px;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-  }
-  .close-button {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-  }
-  .close-button:hover,
-  .close-button:focus {
-    color: black;
-    text-decoration: none;
-    cursor: pointer;
-  }
+  .progress-container { width: 100%; height: 15px; background: #eee; border-radius: 8px; margin-top: 6px; overflow: hidden; }
+  .progress-bar { height: 100%; width: 0%; transition: width 0.3s ease; background: #4CAF50; }
+  .progress-bar.green { background: #4CAF50; } .progress-bar.orange { background: #FF9800; } .progress-bar.red { background: #F44336; }
+  .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+  .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px; }
+  .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
 </style>
 <link rel="manifest" href="./manifest.json" />
 </head>
 <body>
 
-<h1>KistenTimer v1</h1>
-
+<h1>KistenTimer v2</h1>
 <div id="machines"></div>
 
 <div class="add-machine">
   <h2>Maschine hinzufügen</h2>
-  <label>
-    Name:<br />
-    <input type="text" id="name" />
-  </label>
-  <label>
-    Typ:<br />
+  <label>Name:<br /><input type="text" id="name" /></label>
+  <label>Typ:<br />
     <select id="type">
       <option value="E">E (Engel)</option>
       <option value="KM">KM (KraussMaffei)</option>
       <option value="A">A (Arburg)</option>
     </select>
   </label>
-  <label>
-    Kavitätenanzahl:<br />
-    <input type="number" id="cavities" min="1" value="1" />
-  </label>
-  <label>
-    Zykluszeit (Sekunden):<br />
-    <input type="number" id="cycleTime" min="0.01" step="0.01" value="10" />
-  </label>
-  <label>
-    Kistenfüllmenge:<br />
-    <input type="number" id="boxCapacity" min="1" value="100" />
-  </label>
+  <label>Kavitätenanzahl:<br /><input type="number" id="cavities" min="1" value="1" /></label>
+  <label>Zykluszeit (Sekunden):<br /><input type="number" id="cycleTime" min="0.01" step="0.01" value="10" /></label>
+  <label>Kistenfüllmenge:<br /><input type="number" id="boxCapacity" min="1" value="100" /></label>
   <button onclick="addMachine()">Maschine hinzufügen</button>
-  <button onclick="requestNotificationPermission()">Benachrichtigungen aktivieren</button>
+  <button onclick="requestNotificationPermission()">Lokale Benachrichtigungen aktivieren</button>
+  <button onclick="initPushNotifications()">Push-Benachrichtigungen aktivieren</button>
 </div>
 
 <div id="editMachineModal" class="modal">
@@ -145,449 +78,322 @@
     <span class="close-button" onclick="closeEditModal()">&times;</span>
     <h2>Maschine bearbeiten</h2>
     <input type="hidden" id="editMachineId" />
-    <label>
-      Name:<br />
-      <input type="text" id="editName" />
-    </label>
-    <label>
-      Typ:<br />
+    <label>Name:<br /><input type="text" id="editName" /></label>
+    <label>Typ:<br />
       <select id="editType">
         <option value="E">E (Engel)</option>
         <option value="KM">KM (KraussMaffei)</option>
         <option value="A">A (Arburg)</option>
       </select>
     </label>
-    <label>
-      Kavitätenanzahl:<br />
-      <input type="number" id="editCavities" min="1" />
-    </label>
-    <label>
-      Zykluszeit (Sekunden):<br />
-      <input type="number" id="editCycleTime" min="0.01" step="0.01" />
-    </label>
-    <label>
-      Kistenfüllmenge:<br />
-      <input type="number" id="editBoxCapacity" min="1" />
-    </label>
-    <label>
-      Kisten in aktueller Schicht:<br />
-      <input type="number" id="editBoxesCompletedShift" min="0" />
-    </label>
+    <label>Kavitätenanzahl:<br /><input type="number" id="editCavities" min="1" /></label>
+    <label>Zykluszeit (Sekunden):<br /><input type="number" id="editCycleTime" min="0.01" step="0.01" /></label>
+    <label>Kistenfüllmenge:<br /><input type="number" id="editBoxCapacity" min="1" /></label>
+    <label>Kisten in aktueller Schicht:<br /><input type="number" id="editBoxesCompletedShift" min="0" /></label>
     <button onclick="saveMachineChanges()">Änderungen speichern</button>
   </div>
 </div>
 
-<script>
-  // Service Worker Registrierung
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
-        .then(registration => {
-          console.log('ServiceWorker registration successful with scope: ', registration.scope);
-        })
-        .catch(err => {
-          console.log('ServiceWorker registration failed: ', err);
-        });
-    });
-  }
+<script type="module">
+    // --- FIREBASE v11 INITIALISIERUNG ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+    import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-messaging.js";
 
-  // --- Benachrichtigungslogik anpassen ---
-  let notificationPermissionGranted = false; 
-
-  function requestNotificationPermission() {
-    if ('Notification' in window) {
-      Notification.requestPermission().then(permission => {
-        if (permission === 'granted') {
-          notificationPermissionGranted = true;
-          alert('Benachrichtigungen sind jetzt aktiviert!');
-        } else {
-          notificationPermissionGranted = false;
-          alert('Benachrichtigungen wurden blockiert oder abgelehnt. Bitte überprüfen Sie die Browser-Einstellungen.'); 
-        }
-      });
-    } else {
-      alert('Dieser Browser unterstützt keine Benachrichtigungen.');
-    }
-  }
-
-  if ('Notification' in window) {
-    if (Notification.permission === 'granted') {
-      notificationPermissionGranted = true;
-    } else if (Notification.permission === 'denied') {
-      notificationPermissionGranted = false; 
-    }
-  }
-
-
-  // Schichtdefinitionen
-  const shifts = [
-    { name: "Frühschicht", startHour: 6, startMinute: 0, endHour: 13, endMinute: 50 },
-    { name: "Spätschicht", startHour: 14, startMinute: 0, endHour: 22, endMinute: 0 },
-    { name: "Nachtschicht", startHour: 22, startMinute: 0, endHour: 5, endMinute: 50, overnight: true }
-  ];
-
-  // Maschinen im lokalen Speicher speichern und laden
-  let machines = JSON.parse(localStorage.getItem('machines')) || [];
-
-  function saveMachines() {
-    localStorage.setItem('machines', JSON.stringify(machines));
-  }
-
-  // Funktion zur Ermittlung der aktuellen Schicht
-  function getCurrentShift(now) {
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTotalMinutes = currentHour * 60 + currentMinute;
-
-    for (const shift of shifts) {
-      let startTotalMinutes = shift.startHour * 60 + shift.startMinute;
-      let endTotalMinutes = shift.endHour * 60 + shift.endMinute;
-
-      if (shift.overnight) {
-        if (currentTotalMinutes >= startTotalMinutes || currentTotalMinutes < endTotalMinutes) {
-          return shift;
-        }
-      } else {
-        if (currentTotalMinutes >= startTotalMinutes && currentTotalMinutes < endTotalMinutes) {
-          return shift;
-        }
-      }
-    }
-    return { name: "Außerhalb Schicht", startHour: 0, startMinute: 0, endHour: 0, endMinute: 0 }; 
-  }
-
-  // Funktion zur Ermittlung des Schichtendes für eine gegebene Zeit
-  function getShiftEndTime(currentDate, shift) {
-    const endDate = new Date(currentDate);
-    endDate.setHours(shift.endHour, shift.endMinute, 0, 0);
-
-    if (shift.overnight) {
-      if (shift.startHour > shift.endHour && currentDate.getHours() >= shift.startHour) {
-        endDate.setDate(endDate.getDate() + 1); 
-      } 
-    } else {
-        if (endDate.getTime() <= currentDate.getTime()) {
-             endDate.setDate(endDate.getDate() + 1);
-        }
-    }
-    return endDate;
-  }
-
-  function addMachine() {
-    const name = document.getElementById('name').value.trim();
-    const type = document.getElementById('type').value;
-    const cavities = parseInt(document.getElementById('cavities').value);
-    const cycleTime = parseFloat(document.getElementById('cycleTime').value);
-    const boxCapacity = parseInt(document.getElementById('boxCapacity').value);
-
-    if (!name || cavities <= 0 || cycleTime <= 0 || boxCapacity <= 0) {
-      alert('Bitte alle Felder korrekt ausfüllen.');
-      return;
-    }
-
-    const machine = {
-      id: Date.now(),
-      name,
-      type,
-      cavities,
-      cycleTime,
-      boxCapacity,
-      currentFill: 0,
-      lastUpdate: Date.now(),
-      boxesCompleted: 0,
-      boxesCompletedShift: 0,
-      isFillingManually: false,
-      lastShiftName: getCurrentShift(new Date()).name 
+    const firebaseConfig = {
+        apiKey: "AIzaSyCptp989CDyP2I6MrwXdM14WgFvzadEF5k",
+        authDomain: "kistentimer.firebaseapp.com",
+        projectId: "kistentimer",
+        storageBucket: "kistentimer.firebasestorage.app",
+        messagingSenderId: "161547195519",
+        appId: "1:161547195519:web:3a0d8fa3c90960eaa7db4a"
     };
-    machines.push(machine);
-    saveMachines();
-    renderMachine(machine); // Fügt die neue Maschine hinzu
-    clearInputs();
-  }
 
-  function clearInputs() {
-    document.getElementById('name').value = '';
-    document.getElementById('cavities').value = 1;
-    document.getElementById('cycleTime').value = 10;
-    document.getElementById('boxCapacity').value = 100;
-  }
+    const app = initializeApp(firebaseConfig);
+    const messaging = getMessaging(app);
 
-  function renderMachine(machine) {
-    const container = document.getElementById('machines');
+    // --- PUSH-BENACHRICHTIGUNGS-LOGIK ---
+    window.initPushNotifications = function() {
+        console.log('Requesting permission for Push Notifications...');
+        Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+                console.log('Notification permission granted.');
+                
+                // ======================================================================
+                // BITTE HIER IHREN ZUVOR GENERIERTEN VAPID KEY EINFÜGEN!
+                // ======================================================================
+                const vapidKey = 'HIER_VAPID_KEY_EINFUEGEN';
 
-    let div = document.getElementById('machine-' + machine.id);
-    if (!div) {
-      div = document.createElement('div');
-      div.className = 'machine';
-      div.id = 'machine-' + machine.id;
-      container.appendChild(div); // Füge das Element zum DOM hinzu
-    }
-
-    // Inhalt des Divs neu aufbauen (passiert bei initialem Rendern und Bearbeiten)
-    // Dies stellt sicher, dass Event-Listener korrekt gebunden werden
-    div.innerHTML = `
-        <div class="header">
-            <div class="icon ${machine.type}">${machine.type}</div>
-            <div>${machine.name}</div>
-        </div>
-        <label>
-            Aktuelle Füllmenge: <br>
-            <input type="number" id="fillInput-${machine.id}" min="0" max="${machine.boxCapacity}" value="${Math.floor(machine.currentFill)}" />
-        </label>
-        <div class="progress-container">
-            <div class="progress-bar"></div>
-        </div>
-        <div class="time-info" id="time-${machine.id}">Restzeit: --</div>
-        <div class="shift-info" id="shift-info-${machine.id}">Schicht: -- Kisten verbleibend: --</div>
-        <div class="machine-actions">
-            <button class="edit" onclick="openEditModal(${machine.id})">Bearbeiten</button>
-            <button class="delete" onclick="deleteMachine(${machine.id})">Löschen</button>
-        </div>
-    `;
-
-    // Referenzen und Event-Listener nach dem Setzen von innerHTML hinzufügen
-    machine.fillInput = div.querySelector(`#fillInput-${machine.id}`);
-    machine.progressBar = div.querySelector('.progress-bar');
-    machine.timeDiv = div.querySelector(`#time-${machine.id}`);
-    machine.shiftInfoDiv = div.querySelector(`#shift-info-${machine.id}`);
-    machine.machineDiv = div; // Referenz zum Haupt-Div der Maschine speichern
-
-    // Event-Listener für das Füllstand-Inputfeld hinzufügen
-    if (machine.fillInput) {
-        machine.fillInput.addEventListener('focus', () => {
-          machine.isFillingManually = true;
-        });
-        machine.fillInput.addEventListener('blur', (e) => {
-          machine.isFillingManually = false;
-          let val = parseInt(e.target.value);
-          if (isNaN(val)) val = 0;
-          val = Math.min(machine.boxCapacity, Math.max(0, val));
-          machine.currentFill = val;
-          machine.lastUpdate = Date.now(); 
-          saveMachines();
-        });
-        machine.fillInput.addEventListener('input', (e) => {
-          let val = parseInt(e.target.value);
-          if (isNaN(val)) val = 0;
-          val = Math.min(machine.boxCapacity, Math.max(0, val));
-          machine.currentFill = val; 
-          machine.lastUpdate = Date.now(); 
+                getToken(messaging, { vapidKey: vapidKey }).then((currentToken) => {
+                    if (currentToken) {
+                        console.log('Firebase Push Token:', currentToken);
+                        alert('Push-Token erfolgreich erhalten! Siehe Konsole.');
+                    } else {
+                        console.log('No registration token available.');
+                    }
+                }).catch((err) => {
+                    console.log('An error occurred while retrieving token. ', err);
+                });
+            } else {
+                console.log('Unable to get permission to notify.');
+            }
         });
     }
-  }
 
-  function renderAllMachines() {
-    const container = document.getElementById('machines');
-    container.innerHTML = ''; // Leere den Container komplett
-    machines.forEach(machine => renderMachine(machine)); // Füge alle Maschinen hinzu
-  }
-
-  // Initiales Rendern beim Laden der Seite
-  document.addEventListener('DOMContentLoaded', renderAllMachines);
-
-
-  // Hilfsfunktion für Zeitformat (zeigt jetzt immer Minuten und Sekunden)
-  function formatTime(sec) {
-    const totalSeconds = Math.max(0, sec);
-    const m = Math.floor(totalSeconds / 60);
-    const s = Math.floor(totalSeconds % 60);
-    return `${m}m ${String(s).padStart(2, '0')}s`;
-  }
-
-  // Hilfsfunktion, um die Uhrzeit im Format HH:MM darzustellen
-  function formatTimeOfDay(date) {
-    const h = String(date.getHours()).padStart(2, '0');
-    const m = String(date.getMinutes()).padStart(2, '0');
-    return `${h}:${m}`;
-  }
-
-  // Benachrichtigung wenn Kiste voll (Browser-Benachrichtigung)
-  function notifyBoxFull(machine) {
-    if (notificationPermissionGranted) { 
-      console.log(`Sending notification for ${machine.name}: Kiste voll!`);
-      const notification = new Notification(`Maschine ${machine.name} – Kiste voll!`, {
-        body: `Die Kiste ist jetzt voll und wurde automatisch zurückgesetzt.`,
-      });
-    } else {
-        console.warn(`Cannot send notification for ${machine.name}: Permission not granted.`);
-    }
-  }
-
-  // Audio-Element für Ton
-  const audio = new Audio('https://www.soundjay.com/buttons/beep-01a.mp3'); 
-  audio.preload = 'auto'; 
-
-  function playBeep() {
-    audio.play().catch(e => console.error("Could not play sound:", e));
-  }
-
-  // Bearbeiten und Löschen Funktionen
-  function openEditModal(machineId) {
-    const machine = machines.find(m => m.id === machineId);
-    if (!machine) return;
-
-    document.getElementById('editMachineId').value = machine.id;
-    document.getElementById('editName').value = machine.name;
-    document.getElementById('editType').value = document.getElementById('editType').value; /* KORREKTUR: .value fehlte hier */
-    document.getElementById('editCavities').value = machine.cavities;
-    document.getElementById('editCycleTime').value = machine.cycleTime;
-    document.getElementById('editBoxCapacity').value = machine.boxCapacity;
-    document.getElementById('editBoxesCompletedShift').value = machine.boxesCompletedShift || 0;
-    
-    document.getElementById('editMachineModal').style.display = 'block';
-  }
-
-  function closeEditModal() {
-    document.getElementById('editMachineModal').style.display = 'none';
-  }
-
-  function saveMachineChanges() {
-    const machineId = parseInt(document.getElementById('editMachineId').value);
-    const machine = machines.find(m => m.id === machineId);
-
-    if (!machine) {
-      alert('Maschine nicht gefunden.');
-      return;
+    // --- KISTENTIMER APP-LOGIK ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(registration => console.log('ServiceWorker registration successful'))
+                .catch(err => console.log('ServiceWorker registration failed: ', err));
+        });
     }
 
-    const newName = document.getElementById('editName').value.trim();
-    const newType = document.getElementById('editType').value; 
-    const newCavities = parseInt(document.getElementById('editCavities').value);
-    const newCycleTime = parseFloat(document.getElementById('editCycleTime').value);
-    const newBoxCapacity = parseInt(document.getElementById('editBoxCapacity').value);
-    const newBoxesCompletedShift = parseInt(document.getElementById('editBoxesCompletedShift').value);
-
-    if (!newName || newCavities <= 0 || newCycleTime <= 0 || newBoxCapacity <= 0 || newBoxesCompletedShift < 0) {
-      alert('Bitte alle Felder korrekt ausfüllen.');
-      return;
+    let notificationPermissionGranted = false;
+    window.requestNotificationPermission = function() {
+        if ('Notification' in window) {
+            Notification.requestPermission().then(permission => {
+                notificationPermissionGranted = (permission === 'granted');
+                alert(notificationPermissionGranted ? 'Lokale Benachrichtigungen aktiviert!' : 'Benachrichtigungen blockiert.');
+            });
+        }
+    }
+    if ('Notification' in window) {
+        notificationPermissionGranted = (Notification.permission === 'granted');
     }
 
-    machine.name = newName;
-    machine.type = newType;
-    machine.cavities = newCavities;
-    machine.cycleTime = newCycleTime;
-    machine.boxCapacity = newBoxCapacity;
-    machine.boxesCompletedShift = newBoxesCompletedShift;
+    const shifts = [
+        { name: "Frühschicht", startHour: 6, startMinute: 0, endHour: 13, endMinute: 50 },
+        { name: "Spätschicht", startHour: 14, startMinute: 0, endHour: 22, endMinute: 0 },
+        { name: "Nachtschicht", startHour: 22, startMinute: 0, endHour: 5, endMinute: 50, overnight: true }
+    ];
 
-    saveMachines();
-    renderMachine(machine); // Die einzelne Maschine neu rendern, um Änderungen anzuzeigen
-    closeEditModal();
-  }
+    let machines = JSON.parse(localStorage.getItem('machines')) || [];
 
-  function deleteMachine(machineId) {
-    if (confirm('Sind Sie sicher, dass Sie diese Maschine löschen möchten?')) {
-      machines = machines.filter(m => m.id !== machineId);
-      saveMachines();
-      document.getElementById('machine-' + machineId).remove(); // Element aus dem DOM entfernen
+    function saveMachines() {
+        localStorage.setItem('machines', JSON.stringify(machines));
     }
-  }
 
-  // Hauptupdate-Loop, alle 100ms für flüssigeres Herunterzählen des Timers
-  setInterval(() => {
-    const now = new Date();
-    const currentShift = getCurrentShift(now);
+    function getCurrentShift(now) {
+        const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+        for (const shift of shifts) {
+            const startTotalMinutes = shift.startHour * 60 + shift.startMinute;
+            const endTotalMinutes = shift.endHour * 60 + shift.endMinute;
+            if (shift.overnight) {
+                if (currentTotalMinutes >= startTotalMinutes || currentTotalMinutes < endTotalMinutes) return shift;
+            } else {
+                if (currentTotalMinutes >= startTotalMinutes && currentTotalMinutes < endTotalMinutes) return shift;
+            }
+        }
+        return { name: "Außerhalb Schicht" };
+    }
 
-    machines.forEach(machine => {
-      // --- Logik für zyklusweises Zählen im Hintergrund (nur wenn nicht manuell bearbeitet wird) ---
-      if (!machine.isFillingManually) {
-        const elapsedMsSinceLastProductionUpdate = now.getTime() - machine.lastUpdate;
-        const elapsedSecSinceLastProductionUpdate = elapsedMsSinceLastProductionUpdate / 1000;
+    function getShiftEndTime(currentDate, shift) {
+        const endDate = new Date(currentDate);
+        endDate.setHours(shift.endHour, shift.endMinute, 0, 0);
+        if (shift.overnight && shift.startHour > shift.endHour && currentDate.getHours() >= shift.startHour) {
+            endDate.setDate(endDate.getDate() + 1);
+        } else if (!shift.overnight && endDate.getTime() <= currentDate.getTime()) {
+            endDate.setDate(endDate.getDate() + 1);
+        }
+        return endDate;
+    }
 
-        const fullCycles = Math.floor(elapsedSecSinceLastProductionUpdate / machine.cycleTime);
+    window.addMachine = function() {
+        const name = document.getElementById('name').value.trim();
+        if (!name) { alert('Bitte Namen eingeben.'); return; }
+        const machine = {
+            id: Date.now(),
+            name: name,
+            type: document.getElementById('type').value,
+            cavities: parseInt(document.getElementById('cavities').value) || 1,
+            cycleTime: parseFloat(document.getElementById('cycleTime').value) || 10,
+            boxCapacity: parseInt(document.getElementById('boxCapacity').value) || 100,
+            currentFill: 0, lastUpdate: Date.now(), boxesCompleted: 0,
+            boxesCompletedShift: 0, isFillingManually: false,
+            lastShiftName: getCurrentShift(new Date()).name
+        };
+        machines.push(machine);
+        saveMachines();
+        renderMachine(machine);
+        clearInputs();
+    }
+
+    function clearInputs() {
+        document.getElementById('name').value = '';
+        document.getElementById('cavities').value = 1;
+        document.getElementById('cycleTime').value = 10;
+        document.getElementById('boxCapacity').value = 100;
+    }
+
+    function renderMachine(machine) {
+        const container = document.getElementById('machines');
+        let div = document.getElementById('machine-' + machine.id);
+        if (!div) {
+            div = document.createElement('div');
+            div.className = 'machine';
+            div.id = 'machine-' + machine.id;
+            container.appendChild(div);
+        }
+        div.innerHTML = `
+            <div class="header">
+                <div class="icon ${machine.type}">${machine.type}</div>
+                <div>${machine.name}</div>
+            </div>
+            <label>Aktuelle Füllmenge:<br>
+                <input type="number" id="fillInput-${machine.id}" min="0" max="${machine.boxCapacity}" value="${Math.floor(machine.currentFill)}" />
+            </label>
+            <div class="progress-container"><div class="progress-bar"></div></div>
+            <div class="time-info" id="time-${machine.id}"></div>
+            <div class="shift-info" id="shift-info-${machine.id}"></div>
+            <div class="machine-actions">
+                <button class="edit" onclick="openEditModal(${machine.id})">Bearbeiten</button>
+                <button class="delete" onclick="deleteMachine(${machine.id})">Löschen</button>
+            </div>`;
         
-        if (fullCycles > 0) {
-          machine.currentFill += fullCycles * machine.cavities;
-          machine.lastUpdate += fullCycles * machine.cycleTime * 1000; 
+        machine.fillInput = div.querySelector(`#fillInput-${machine.id}`);
+        machine.progressBar = div.querySelector('.progress-bar');
+        machine.timeDiv = div.querySelector(`#time-${machine.id}`);
+        machine.shiftInfoDiv = div.querySelector(`#shift-info-${machine.id}`);
+        machine.machineDiv = div;
 
-          const currentShiftName = currentShift.name;
-          if (machine.lastShiftName !== currentShiftName) {
-            machine.boxesCompletedShift = 0; 
-            machine.lastShiftName = currentShiftName;
+        machine.fillInput.addEventListener('focus', () => machine.isFillingManually = true);
+        machine.fillInput.addEventListener('blur', (e) => {
+            machine.isFillingManually = false;
+            let val = parseInt(e.target.value) || 0;
+            machine.currentFill = Math.min(machine.boxCapacity, Math.max(0, val));
+            machine.lastUpdate = Date.now();
             saveMachines();
-          }
-        }
+        });
+    }
 
-        let boxesFilledInThisInterval = 0;
-        let wasBoxJustFilled = false; 
-        while (machine.currentFill >= machine.boxCapacity) {
-          machine.currentFill -= machine.boxCapacity;
-          machine.boxesCompleted++;
-          machine.boxesCompletedShift++;
-          boxesFilledInThisInterval++;
-          wasBoxJustFilled = true; 
-        }
+    function renderAllMachines() {
+        document.getElementById('machines').innerHTML = '';
+        machines.forEach(renderMachine);
+    }
 
-        if (wasBoxJustFilled) { 
-          notifyBoxFull(machine); 
-          playBeep(); 
-          if (machine.machineDiv) { 
-              machine.machineDiv.classList.add('box-full'); 
-              setTimeout(() => {
-                if (machine.machineDiv) { 
-                  machine.machineDiv.classList.remove('box-full');
+    document.addEventListener('DOMContentLoaded', renderAllMachines);
+
+    function formatTime(sec) {
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return `${m}m ${String(s).padStart(2, '0')}s`;
+    }
+
+    function formatTimeOfDay(date) {
+        const h = String(date.getHours()).padStart(2, '0');
+        const m = String(date.getMinutes()).padStart(2, '0');
+        return `${h}:${m}`;
+    }
+
+    function notifyBoxFull(machine) {
+        if (notificationPermissionGranted) {
+            console.log(`Sending notification for ${machine.name}: Kiste voll!`);
+            new Notification(`Maschine ${machine.name} – Kiste voll!`, {
+                body: `Die Kiste ist jetzt voll und wurde automatisch zurückgesetzt.`,
+            });
+        } else {
+            console.warn(`Cannot send notification for ${machine.name}: Permission not granted.`);
+        }
+    }
+
+    const audio = new Audio('https://www.soundjay.com/buttons/beep-01a.mp3');
+    audio.preload = 'auto';
+    function playBeep() {
+        audio.play().catch(e => console.error("Could not play sound:", e));
+    }
+
+    window.openEditModal = function(machineId) {
+        const machine = machines.find(m => m.id === machineId);
+        if (!machine) return;
+        document.getElementById('editMachineId').value = machine.id;
+        document.getElementById('editName').value = machine.name;
+        document.getElementById('editType').value = machine.type;
+        document.getElementById('editCavities').value = machine.cavities;
+        document.getElementById('editCycleTime').value = machine.cycleTime;
+        document.getElementById('editBoxCapacity').value = machine.boxCapacity;
+        document.getElementById('editBoxesCompletedShift').value = machine.boxesCompletedShift || 0;
+        document.getElementById('editMachineModal').style.display = 'block';
+    }
+
+    window.closeEditModal = function() {
+        document.getElementById('editMachineModal').style.display = 'none';
+    }
+
+    window.saveMachineChanges = function() {
+        const machineId = parseInt(document.getElementById('editMachineId').value);
+        const machine = machines.find(m => m.id === machineId);
+        if (!machine) return;
+        machine.name = document.getElementById('editName').value.trim();
+        machine.type = document.getElementById('editType').value;
+        machine.cavities = parseInt(document.getElementById('editCavities').value) || 1;
+        machine.cycleTime = parseFloat(document.getElementById('editCycleTime').value) || 10;
+        machine.boxCapacity = parseInt(document.getElementById('editBoxCapacity').value) || 100;
+        machine.boxesCompletedShift = parseInt(document.getElementById('editBoxesCompletedShift').value) || 0;
+        saveMachines();
+        renderMachine(machine);
+        closeEditModal();
+    }
+
+    window.deleteMachine = function(machineId) {
+        if (confirm('Sind Sie sicher?')) {
+            machines = machines.filter(m => m.id !== machineId);
+            saveMachines();
+            document.getElementById('machine-' + machineId).remove();
+        }
+    }
+
+    setInterval(() => {
+        const now = new Date();
+        const currentShift = getCurrentShift(now);
+        machines.forEach(machine => {
+            if (!machine.isFillingManually) {
+                const elapsedSec = (now.getTime() - machine.lastUpdate) / 1000;
+                const fullCycles = Math.floor(elapsedSec / machine.cycleTime);
+                if (fullCycles > 0) {
+                    machine.currentFill += fullCycles * machine.cavities;
+                    machine.lastUpdate += fullCycles * machine.cycleTime * 1000;
+                    if (machine.lastShiftName !== currentShift.name) {
+                        machine.boxesCompletedShift = 0;
+                        machine.lastShiftName = currentShift.name;
+                    }
                 }
-              }, 2000); 
-          }
-          saveMachines();
-        }
-      } else {
-        machine.lastUpdate = now.getTime();
-      }
+                while (machine.currentFill >= machine.boxCapacity) {
+                    machine.currentFill -= machine.boxCapacity;
+                    machine.boxesCompleted++;
+                    machine.boxesCompletedShift++;
+                    notifyBoxFull(machine);
+                    playBeep();
+                    if (machine.machineDiv) {
+                        machine.machineDiv.classList.add('box-full');
+                        setTimeout(() => machine.machineDiv.classList.remove('box-full'), 2000);
+                    }
+                }
+                saveMachines();
+            }
 
-      // --- Visuelle Anzeige (Restzeit & Schichtinformation) ---
-      // Diese Aktualisierungen müssen immer erfolgen, da sie den Timer und Füllstand aktualisieren.
-      const partsPerSecond = machine.cavities / machine.cycleTime;
-      const secondsLeftForCurrentBox = (machine.boxCapacity - machine.currentFill) / partsPerSecond;
-      
-      const fillTime = new Date(now.getTime() + secondsLeftForCurrentBox * 1000);
-      const fillTimeFormatted = formatTimeOfDay(fillTime);
+            const partsPerSecond = machine.cavities / machine.cycleTime;
+            const secondsLeftForCurrentBox = (machine.boxCapacity - machine.currentFill) / partsPerSecond;
+            const fillTime = new Date(now.getTime() + secondsLeftForCurrentBox * 1000);
 
-      // Zugriff auf die DOM-Elemente über die gespeicherten Referenzen
-      if (machine.timeDiv) {
-          machine.timeDiv.textContent = `Restzeit: ${formatTime(secondsLeftForCurrentBox)} - Voll um: ${fillTimeFormatted} - Teile: ${Math.floor(machine.currentFill)} / ${machine.boxCapacity} - Kisten: ${machine.boxesCompleted}`;
-      }
-      
-      if (!machine.isFillingManually && machine.fillInput) { 
-        machine.fillInput.value = Math.floor(machine.currentFill);
-      }
+            machine.timeDiv.textContent = `Restzeit: ${formatTime(secondsLeftForCurrentBox)} | Voll: ${formatTimeOfDay(fillTime)} Uhr`;
+            
+            if (!machine.isFillingManually) {
+              machine.fillInput.value = Math.floor(machine.currentFill);
+            }
 
-      if (machine.progressBar) { 
-          const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
-          machine.progressBar.style.width = `${progressPercent}%`;
+            const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
+            machine.progressBar.style.width = `${progressPercent}%`;
+            machine.progressBar.className = 'progress-bar';
+            if (progressPercent < 70) machine.progressBar.classList.add('green');
+            else if (progressPercent < 90) machine.progressBar.classList.add('orange');
+            else machine.progressBar.classList.add('red');
 
-          machine.progressBar.classList.remove('green', 'orange', 'red');
-          if (progressPercent < 70) {
-            machine.progressBar.classList.add('green');
-          } else if (progressPercent < 90) {
-            machine.progressBar.classList.add('orange');
-          } else {
-            machine.progressBar.classList.add('red');
-          }
-      }
-
-      if (machine.shiftInfoDiv) { 
-          const shiftEndTime = getShiftEndTime(now, currentShift);
-          const remainingShiftTimeMs = Math.max(0, shiftEndTime.getTime() - now.getTime());
-          const remainingShiftTimeSec = remainingShiftTimeMs / 1000;
-
-          let boxesRemainingForShift = 0;
-          const theoreticalPartsPossibleInRemainingShiftTime = partsPerSecond * remainingShiftTimeSec;
-          
-          if (Math.floor(machine.currentFill) < machine.boxCapacity && secondsLeftForCurrentBox <= remainingShiftTimeSec) {
-              boxesRemainingForShift = 1; 
-              const timeAfterCurrentBoxFinished = remainingShiftTimeSec - secondsLeftForCurrentBox;
-              boxesRemainingForShift += Math.floor((partsPerSecond * timeAfterCurrentBoxFinished) / machine.boxCapacity);
-          } else if (Math.floor(machine.currentFill) >= machine.boxCapacity) {
-              boxesRemainingForShift = Math.floor(theoreticalPartsPossibleInRemainingShiftTime / machine.boxCapacity);
-          }
-          
-          boxesRemainingForShift = Math.max(0, boxesRemainingForShift - machine.boxesCompletedShift);
-          
-          machine.shiftInfoDiv.textContent = `Schicht: ${currentShift.name} | Kisten in Schicht: ${machine.boxesCompletedShift} | Kisten verbleibend: ${boxesRemainingForShift}`;
-      }
-    });
-  }, 100); 
-
+            const shiftEndTime = getShiftEndTime(now, currentShift);
+            const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
+            const boxesRemainingForShift = Math.floor((remainingShiftTimeSec * partsPerSecond) / machine.boxCapacity);
+            machine.shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
+        });
+    }, 100);
 </script>
 </body>
 </html>
