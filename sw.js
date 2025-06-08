@@ -22,14 +22,20 @@ firebase.initializeApp(firebaseConfig);
 // Der Messaging-Dienst. Mit den "-compat" Skripten ist dieser Aufruf korrekt.
 const messaging = firebase.messaging();
 
-// Handler für ankommende Push-Nachrichten im Hintergrund
+// in sw.js -> messaging.onBackgroundMessage
+
 messaging.onBackgroundMessage((payload) => {
   console.log('[sw.js] Received background message ', payload);
   
   const notificationTitle = payload.notification.title;
   const notificationOptions = {
     body: payload.notification.body,
-    icon: './icons/icon-192x192.png'
+    icon: './icons/icon-192x192.png',
+    vibrate: [200, 100, 200], // Vibration für mobile Geräte
+    // NEU: Wir fügen Daten zur Benachrichtigung hinzu
+    data: {
+      url: '/' // Die URL, die bei Klick geöffnet werden soll. '/' ist die Startseite.
+    }
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
@@ -80,4 +86,38 @@ self.addEventListener('activate', event => {
             );
         })
     );
+});
+// in sw.js
+
+// NEU: Event-Listener für Klicks auf Benachrichtigungen
+self.addEventListener('notificationclick', event => {
+  console.log('[sw.js] Notification click Received.');
+
+  // Benachrichtigung nach dem Klick schließen
+  event.notification.close();
+  
+  // URL aus den Daten der Benachrichtigung auslesen
+  const targetUrl = event.notification.data.url;
+
+  // Verhindert, dass der Service Worker beendet wird, bevor das neue Fenster geöffnet ist
+  event.waitUntil(
+    clients.matchAll({
+      type: "window",
+      includeUncontrolled: true
+    }).then(clientList => {
+      // Prüfen, ob ein Fenster der App bereits geöffnet ist
+      for (const client of clientList) {
+        // Wenn ein Fenster gefunden wird, wird es fokussiert
+        if ('focus' in client) {
+          console.log('App window found, focusing it.');
+          return client.focus();
+        }
+      }
+      // Wenn kein Fenster gefunden wurde, wird ein neues geöffnet
+      if (clients.openWindow) {
+        console.log('No app window found, opening a new one.');
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
 });
