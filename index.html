@@ -111,38 +111,45 @@
     const app = initializeApp(firebaseConfig);
     const messaging = getMessaging(app);
 
-  // --- KORRIGIERTE PUSH-BENACHRICHTIGUNGS-LOGIK ---
+// --- VERBESSERTE PUSH-LOGIK ZUR FEHLERSUCHE ---
 window.initPushNotifications = function() {
-    console.log('Requesting permission for Push Notifications...');
+    console.log('[1] Button geklickt. Fordere Erlaubnis an...');
     Notification.requestPermission().then((permission) => {
         if (permission === 'granted') {
-            console.log('Notification permission granted.');
+            console.log('[2] Erlaubnis erteilt. Warte jetzt darauf, dass der Service Worker "ready" ist.');
 
-            // Warten, bis unser eigener Service Worker ('sw.js') bereit ist
             navigator.serviceWorker.ready.then((registration) => {
-                console.log('Service Worker is ready.');
-
-                // VAPID Key von Firebase Console
+                console.log('[3] Service Worker ist "ready". Versuche jetzt, den Token zu holen.');
+                
+                // BITTE NOCHMALS PRÜFEN: Ist hier Ihr echter VAPID-Key eingefügt?
                 const vapidKey = 'BMehjID94jiDYaX4StW5gIoV9Ct9PrMqT3gZtoyl5mfOE4aiOyINP6n0D4RmHQvoJGi3Ll0gPPh0wYHomQkZmuU';
+                
+                if (vapidKey === 'BMehjID94jiDYaX4StW5gIoV9Ct9PrMqT3gZtoyl5mfOE4aiOyINP6n0D4RmHQvoJGi3Ll0gPPh0wYHomQkZmuU' || vapidKey.length < 50) {
+                    console.error('FEHLER: Es wurde kein gültiger VAPID-Key eingefügt!');
+                    alert('FEHLER: Bitte den VAPID-Key in der index.html einfügen.');
+                    return; // Bricht hier ab
+                }
 
-                // Wir übergeben jetzt die "registration" unseres Service Workers an getToken
                 getToken(messaging, { 
                     vapidKey: vapidKey,
-                    serviceWorkerRegistration: registration // <--- DAS IST DIE WICHTIGE ÄNDERUNG
+                    serviceWorkerRegistration: registration
                 }).then((currentToken) => {
                     if (currentToken) {
-                        console.log('Firebase Push Token:', currentToken);
+                        console.log('[4] ERFOLG! Firebase Push Token:', currentToken);
                         alert('Push-Token erfolgreich erhalten! Siehe Konsole.');
                     } else {
-                        console.log('No registration token available. Request permission to generate one.');
+                        // Dieser Fall tritt ein, wenn alles klappt, aber Firebase aus irgendeinem Grund keinen Token ausstellt.
+                        console.warn('[4] FEHLSCHLAG: Kein Token erhalten, obwohl alles gut aussah.');
                     }
                 }).catch((err) => {
-                    // Dieser Fehler sollte jetzt nicht mehr auftreten
-                    console.log('An error occurred while retrieving token. ', err);
+                    // Dieser Fehler tritt auf, wenn getToken selbst fehlschlägt.
+                    console.error('[4] FEHLSCHLAG beim Holen des Tokens:', err);
                 });
+            }).catch(err => {
+                 console.error('[X] FEHLER: Warten auf Service Worker .ready ist fehlgeschlagen:', err);
             });
         } else {
-            console.log('Unable to get permission to notify.');
+            console.warn('[2] Erlaubnis NICHT erteilt. Status:', permission);
         }
     });
 }
