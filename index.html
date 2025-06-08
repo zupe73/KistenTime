@@ -311,7 +311,7 @@ window.initPushNotifications = function() {
         }
     }
 
-    const audio = new Audio('https://www.soundjay.com/buttons/beep-01a.mp3');
+    const audio = new Audio('./assets/beep.mp3'); // Der neue, lokale Pfad
     audio.preload = 'auto';
     function playBeep() {
         audio.play().catch(e => console.error("Could not play sound:", e));
