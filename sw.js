@@ -1,10 +1,16 @@
-const CACHE_NAME = 'maschine-timer-app-v7'; // <-- WICHTIG: Erhöhe diesen Namen bei jeder Änderung!
+// sw.js
+
+// 1. Cache-Version erhöhen, damit der Browser die Änderungen übernimmt!
+const CACHE_NAME = 'maschine-timer-app-v8'; 
+
 const urlsToCache = [
-  './', 
+  './',
   './index.html',
   './manifest.json',
-  './sw.js'
-  // Icon-Pfade wurden hier entfernt
+  // 2. Wichtige Assets für die Offline-Funktionalität hinzufügen
+  './icons/icon-192x192.png',
+  './icons/icon-512x512.png',
+  'https://www.soundjay.com/buttons/beep-01a.mp3' 
 ];
 
 // Installation: Caching der statischen Assets
@@ -13,7 +19,7 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Service Worker: Caching App Shell');
+        console.log('Service Worker: Caching App Shell and all assets');
         return cache.addAll(urlsToCache);
       })
       .catch(error => {
