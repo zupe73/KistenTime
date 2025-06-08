@@ -1,7 +1,7 @@
 // sw.js
 
 // 1. Cache-Version erhöhen, damit der Browser die Änderungen übernimmt!
-const CACHE_NAME = 'maschine-timer-app-v8'; 
+const CACHE_NAME = 'maschine-timer-app-v9'; 
 
 const urlsToCache = [
   './',
