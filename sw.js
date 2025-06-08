@@ -36,16 +36,14 @@ messaging.onBackgroundMessage((payload) => {
 });
 
 
-// CACHING-LOGIK
-const CACHE_NAME = 'kistentimer-cache-v16'; // WICHTIG: Neue Version!
-
+const CACHE_NAME = 'kistentimer-cache-v17'; // Version erhöht!
 const urlsToCache = [
   './',
   './index.html',
   './manifest.json',
   './icons/icon-192x192.png',
   './icons/icon-512x512.png',
-  'https://www.soundjay.com/buttons/beep-01a.mp3' 
+  './assets/beep.mp3' // Neuer, lokaler Pfad
 ];
 
 self.addEventListener('install', event => { 
