@@ -297,13 +297,22 @@
         return `${h}:${m}`;
     }
 
-    function notifyBoxFull(machine) {
-        if (notificationPermissionGranted) {
-            new Notification(`Maschine ${machine.name} – Kiste voll!`, {
-                body: `Die Kiste ist jetzt voll und wurde automatisch zurückgesetzt.`,
-            });
-        }
-    }
+    // NACHHER
+function notifyBoxFull(machine) {
+  if (notificationPermissionGranted) { 
+    // Wir loggen nur noch, dass das Event stattgefunden hat.
+    // Die Benachrichtigung selbst wird jetzt vom Backend via Push ausgelöst.
+    console.log(`Event "Kiste voll" für ${machine.name} ausgelöst. Push-Benachrichtigung sollte vom Server kommen.`);
+
+    // --- DEAKTIVIERT ---
+    // const notification = new Notification(`Maschine ${machine.name} – Kiste voll!`, {
+    //   body: `Die Kiste ist jetzt voll und wurde automatisch zurückgesetzt.`,
+    // });
+    
+  } else {
+      console.warn(`Cannot send notification for ${machine.name}: Permission not granted.`);
+  }
+}
 
     const audio = new Audio('./assets/beep.mp3');
     function playBeep() {
