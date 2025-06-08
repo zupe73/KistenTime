@@ -1,7 +1,7 @@
 // sw.js - FINALE VERSION MIT KOMPATIBILITÄTS-BIBLIOTHEKEN
 
 // ======================================================================
-// KORREKTUR HIER: Wir verwenden die "-compat" Versionen der Skripte
+// KORREKTUR: Wir verwenden die "-compat" Versionen der Skripte
 // ======================================================================
 importScripts("https://www.gstatic.com/firebasejs/11.9.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/11.9.0/firebase-messaging-compat.js");
@@ -22,8 +22,7 @@ firebase.initializeApp(firebaseConfig);
 // Der Messaging-Dienst. Mit den "-compat" Skripten ist dieser Aufruf korrekt.
 const messaging = firebase.messaging();
 
-// in sw.js -> messaging.onBackgroundMessage
-
+// Hintergrund-Nachrichten verarbeiten
 messaging.onBackgroundMessage((payload) => {
   console.log('[sw.js] Received background message ', payload);
 
@@ -42,11 +41,6 @@ messaging.onBackgroundMessage((payload) => {
     self.registration.showNotification(notificationTitle, notificationOptions);
   }
 });
-
-
-  self.registration.showNotification(notificationTitle, notificationOptions);
-});
-
 
 const CACHE_NAME = 'kistentimer-cache-v17'; // Version erhöht!
 const urlsToCache = [
@@ -93,9 +87,8 @@ self.addEventListener('activate', event => {
         })
     );
 });
-// in sw.js
 
-// NEU: Event-Listener für Klicks auf Benachrichtigungen
+// Event-Listener für Klicks auf Benachrichtigungen
 self.addEventListener('notificationclick', event => {
   console.log('[sw.js] Notification click Received.');
 
