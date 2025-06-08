@@ -7,38 +7,19 @@
 <style>
   body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
   h1, h2 { color: #0056b3; }
-  .machine {
-    background-color: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-  }
-  .machine.box-full {
-    border-color: #F44336;
-    box-shadow: 0 0 15px rgba(244, 67, 54, 0.5);
-  }
+  .machine { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: border-color 0.3s ease, box-shadow 0.3s ease; }
+  .machine.box-full { border-color: #F44336; box-shadow: 0 0 15px rgba(244, 67, 54, 0.5); }
   .header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-  .icon {
-    font-weight: bold; font-size: 20px; width: 30px; height: 30px;
-    border-radius: 50%; color: white; text-align: center; line-height: 30px;
-    display: flex; align-items: center; justify-content: center;
-  }
+  .icon { font-weight: bold; font-size: 20px; width: 30px; height: 30px; border-radius: 50%; color: white; text-align: center; line-height: 30px; display: flex; align-items: center; justify-content: center; }
   .E { background: #4CAF50; } .KM { background: #2196F3; } .A { background: #F44336; }
-  input[type="text"], input[type="number"], select {
-    width: calc(100% - 10px); padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;
-  }
+  input[type="text"], input[type="number"], select { width: calc(100% - 10px); padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; }
   input[type="number"] { width: 80px; }
-  button {
-    background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px;
-    cursor: pointer; font-size: 16px; margin-right: 5px; margin-top: 10px;
-  }
+  button { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-right: 5px; margin-top: 10px; }
   button:hover { background-color: #0056b3; }
   .machine-actions button { background-color: #6c757d; }
   .machine-actions button.delete { background-color: #dc3545; }
   .machine-actions button.edit { background-color: #ffc107; color: #333; }
-  .add-machine {
-    background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    margin-top: 20px;
-  }
+  .add-machine { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 20px; }
   .time-info, .shift-info { margin-top: 8px; }
   label { display: block; margin-bottom: 6px; font-weight: bold; }
   .progress-container { width: 100%; height: 15px; background: #eee; border-radius: 8px; margin-top: 6px; overflow: hidden; }
@@ -111,74 +92,66 @@
     const app = initializeApp(firebaseConfig);
     const messaging = getMessaging(app);
 
-// --- FINALE, SAUBERE PUSH-LOGIK ---
-window.initPushNotifications = function() {
-    console.log('[1] Button geklickt. Fordere Erlaubnis an...');
-    Notification.requestPermission().then((permission) => {
-        if (permission === 'granted') {
-            console.log('[2] Erlaubnis erteilt. Warte jetzt darauf, dass der Service Worker "ready" ist.');
+    // --- PUSH-BENACHRICHTIGUNGS-LOGIK ---
+    let pushToken = null; // KORREKTUR: Variable zum Speichern des Tokens hinzugefügt
 
-            navigator.serviceWorker.ready.then((registration) => {
-                console.log('[3] Service Worker ist "ready". Versuche jetzt, den Token zu holen.');
-                
-                // Ihr korrekter VAPID-Key
-                const vapidKey = 'BMehjID94jiDYaX4StW5gIoV9Ct9PrMqT3gZtoyl5mfOE4aiOyINP6n0D4RmHQvoJGi3Ll0gPPh0wYHomQkZmuU';
-
-                // Die fehlerhafte if-Bedingung wurde entfernt. Jetzt geht es direkt weiter.
-
-                getToken(messaging, { 
-                    vapidKey: vapidKey,
-                    serviceWorkerRegistration: registration
-                }).then((currentToken) => {
-                    if (currentToken) {
-                        console.log('[4] ERFOLG! Firebase Push Token:', currentToken);
-                        alert('Push-Token erfolgreich erhalten! Siehe Konsole.');
-                    } else {
-                        console.warn('[4] FEHLSCHLAG: Kein Token erhalten, obwohl alles gut aussah.');
-                    }
-                }).catch((err) => {
-                    console.error('[4] FEHLSCHLAG beim Holen des Tokens:', err);
+    window.initPushNotifications = function() {
+        Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+                console.log('Notification permission granted.');
+                navigator.serviceWorker.ready.then((registration) => {
+                    const vapidKey = 'BMehjID94jiDYaX4StW5gIoV9Ct9PrMqT3gZtoyl5mfOE4aiOyINP6n0D4RmHQvoJGi3Ll0gPPh0wYHomQkZmuU';
+                    getToken(messaging, { vapidKey: vapidKey, serviceWorkerRegistration: registration })
+                        .then((currentToken) => {
+                            if (currentToken) {
+                                console.log('Firebase Push Token:', currentToken);
+                                alert('Push-Token erfolgreich erhalten!');
+                                pushToken = currentToken; // KORREKTUR: Token wird hier gespeichert
+                            } else {
+                                console.log('No registration token available.');
+                            }
+                        }).catch((err) => {
+                            console.error('Error retrieving token:', err);
+                        });
                 });
-            });
-        } else {
-            console.warn('[2] Erlaubnis NICHT erteilt. Status:', permission);
-        }
-    });
-}
-// NEUE FUNKTION: Sendet die Daten an unser Backend
-async function schedulePushNotificationsFor(machine) {
-    if (!pushToken) {
-        console.warn("Kein Push-Token vorhanden. Kann keine Benachrichtigung planen.");
-        return;
-    }
-
-    const partsPerSecond = machine.cavities / machine.cycleTime;
-    // Wichtig: Wir berechnen die Restzeit für eine komplett neue Kiste
-    const secondsUntilFull = (machine.boxCapacity / partsPersecond);
-
-    // Die URL Ihrer neuen Cloud Function
-    // BITTE PRÜFEN: Ist dies die korrekte URL aus Ihrem letzten Deployment?
-    const functionUrl = 'https://schedulenotification-xxhao7ipkq-uc.a.run.app'; 
-
-    const data = {
-        token: pushToken,
-        machineName: machine.name,
-        secondsUntilFull: secondsUntilFull
-    };
-
-    console.log(`[Frontend] Sende Planungs-Auftrag für ${machine.name} an das Backend.`);
-    try {
-        const response = await fetch(functionUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+            } else {
+                console.log('Unable to get permission to notify.');
+            }
         });
-        const result = await response.json();
-        console.log('[Frontend] Antwort vom Backend:', result.message);
-    } catch (error) {
-        console.error("Fehler beim Aufrufen der scheduleNotification Funktion:", error);
     }
-}
+
+    // NEUE FUNKTION: Sendet die Daten an unser Backend
+    async function schedulePushNotificationsFor(machine) {
+        if (!pushToken) {
+            console.warn("Kein Push-Token vorhanden. Bitte zuerst aktivieren.");
+            return;
+        }
+
+        const partsPerSecond = machine.cavities / machine.cycleTime;
+        const secondsUntilFull = (machine.boxCapacity - machine.currentFill) / partsPerSecond;
+
+        const functionUrl = 'https://schedulenotification-xxhao7ipkq-uc.a.run.app'; 
+
+        const data = {
+            token: pushToken,
+            machineName: machine.name,
+            secondsUntilFull: secondsUntilFull
+        };
+
+        console.log(`[Frontend] Sende Planungs-Auftrag für ${machine.name} an das Backend.`);
+        try {
+            const response = await fetch(functionUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            console.log('[Frontend] Antwort vom Backend:', result.message);
+        } catch (error) {
+            console.error("Fehler beim Aufrufen der scheduleNotification Funktion:", error);
+        }
+    }
+
     // --- KISTENTIMER APP-LOGIK ---
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
@@ -233,33 +206,28 @@ async function schedulePushNotificationsFor(machine) {
         if (shift.overnight && shift.startHour > shift.endHour && currentDate.getHours() >= shift.startHour) {
             endDate.setDate(endDate.getDate() + 1);
         } else if (!shift.overnight && endDate.getTime() <= currentDate.getTime()) {
-            endDate.setDate(endDate.getDate() + 1);
+             endDate.setDate(endDate.getDate() + 1);
         }
         return endDate;
     }
 
-    window.addMachine = function() {
+    window.addMachine = function() { // KORREKTUR: Logik korrigiert
         const name = document.getElementById('name').value.trim();
         if (!name) { alert('Bitte Namen eingeben.'); return; }
         const machine = {
-            id: Date.now(),
-            name: name,
-            type: document.getElementById('type').value,
+            id: Date.now(), name: name, type: document.getElementById('type').value,
             cavities: parseInt(document.getElementById('cavities').value) || 1,
             cycleTime: parseFloat(document.getElementById('cycleTime').value) || 10,
             boxCapacity: parseInt(document.getElementById('boxCapacity').value) || 100,
             currentFill: 0, lastUpdate: Date.now(), boxesCompleted: 0,
             boxesCompletedShift: 0, isFillingManually: false,
             lastShiftName: getCurrentShift(new Date()).name
-          window.addMachine = function() {
-    // ... Ihr bisheriger Code zum Hinzufügen der Maschine ...
-    schedulePushNotificationsFor(machine); // <--- HIER am Ende hinzufügen
-}
         };
         machines.push(machine);
         saveMachines();
         renderMachine(machine);
         clearInputs();
+        schedulePushNotificationsFor(machine); // KORREKTUR: Aufruf an der richtigen Stelle
     }
 
     function clearInputs() {
@@ -331,17 +299,13 @@ async function schedulePushNotificationsFor(machine) {
 
     function notifyBoxFull(machine) {
         if (notificationPermissionGranted) {
-            console.log(`Sending notification for ${machine.name}: Kiste voll!`);
             new Notification(`Maschine ${machine.name} – Kiste voll!`, {
                 body: `Die Kiste ist jetzt voll und wurde automatisch zurückgesetzt.`,
             });
-        } else {
-            console.warn(`Cannot send notification for ${machine.name}: Permission not granted.`);
         }
     }
 
-    const audio = new Audio('./assets/beep.mp3'); // Der neue, lokale Pfad
-    audio.preload = 'auto';
+    const audio = new Audio('./assets/beep.mp3');
     function playBeep() {
         audio.play().catch(e => console.error("Could not play sound:", e));
     }
@@ -369,9 +333,9 @@ async function schedulePushNotificationsFor(machine) {
         if (!machine) return;
         machine.name = document.getElementById('editName').value.trim();
         machine.type = document.getElementById('editType').value;
-        machine.cavities = parseInt(document.getElementById('editCavities').value) || 1;
+        machine.cavities = parseInt(document.getElementById('cavities').value) || 1;
         machine.cycleTime = parseFloat(document.getElementById('editCycleTime').value) || 10;
-        machine.boxCapacity = parseInt(document.getElementById('editBoxCapacity').value) || 100;
+        machine.boxCapacity = parseInt(document.getElementById('boxCapacity').value) || 100;
         machine.boxesCompletedShift = parseInt(document.getElementById('editBoxesCompletedShift').value) || 0;
         saveMachines();
         renderMachine(machine);
@@ -401,22 +365,25 @@ async function schedulePushNotificationsFor(machine) {
                         machine.lastShiftName = currentShift.name;
                     }
                 }
+                
+                let wasBoxJustFilled = false;
                 while (machine.currentFill >= machine.boxCapacity) {
                     machine.currentFill -= machine.boxCapacity;
                     machine.boxesCompleted++;
                     machine.boxesCompletedShift++;
+                    wasBoxJustFilled = true;
+                }
+
+                if (wasBoxJustFilled) { // KORREKTUR: Logik korrigiert
                     notifyBoxFull(machine);
                     playBeep();
                     if (machine.machineDiv) {
                         machine.machineDiv.classList.add('box-full');
                         setTimeout(() => machine.machineDiv.classList.remove('box-full'), 2000);
-                      if (wasBoxJustFilled) {
-    // ... Ihr bisheriger Code für notifyBoxFull, playBeep, etc. ...
-    schedulePushNotificationsFor(machine); // <--- HIER am Ende hinzufügen
-
                     }
+                    saveMachines();
+                    schedulePushNotificationsFor(machine); // KORREKTUR: Aufruf an der richtigen Stelle
                 }
-                saveMachines();
             }
 
             const partsPerSecond = machine.cavities / machine.cycleTime;
