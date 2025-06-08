@@ -111,33 +111,41 @@
     const app = initializeApp(firebaseConfig);
     const messaging = getMessaging(app);
 
-    // --- PUSH-BENACHRICHTIGUNGS-LOGIK ---
-    window.initPushNotifications = function() {
-        console.log('Requesting permission for Push Notifications...');
-        Notification.requestPermission().then((permission) => {
-            if (permission === 'granted') {
-                console.log('Notification permission granted.');
-                
-                // ======================================================================
-                // BITTE HIER IHREN ZUVOR GENERIERTEN VAPID KEY EINFÜGEN!
-                // ======================================================================
+  // --- KORRIGIERTE PUSH-BENACHRICHTIGUNGS-LOGIK ---
+window.initPushNotifications = function() {
+    console.log('Requesting permission for Push Notifications...');
+    Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') {
+            console.log('Notification permission granted.');
+
+            // Warten, bis unser eigener Service Worker ('sw.js') bereit ist
+            navigator.serviceWorker.ready.then((registration) => {
+                console.log('Service Worker is ready.');
+
+                // VAPID Key von Firebase Console
                 const vapidKey = 'BMehjID94jiDYaX4StW5gIoV9Ct9PrMqT3gZtoyl5mfOE4aiOyINP6n0D4RmHQvoJGi3Ll0gPPh0wYHomQkZmuU';
 
-                getToken(messaging, { vapidKey: vapidKey }).then((currentToken) => {
+                // Wir übergeben jetzt die "registration" unseres Service Workers an getToken
+                getToken(messaging, { 
+                    vapidKey: vapidKey,
+                    serviceWorkerRegistration: registration // <--- DAS IST DIE WICHTIGE ÄNDERUNG
+                }).then((currentToken) => {
                     if (currentToken) {
                         console.log('Firebase Push Token:', currentToken);
                         alert('Push-Token erfolgreich erhalten! Siehe Konsole.');
                     } else {
-                        console.log('No registration token available.');
+                        console.log('No registration token available. Request permission to generate one.');
                     }
                 }).catch((err) => {
+                    // Dieser Fehler sollte jetzt nicht mehr auftreten
                     console.log('An error occurred while retrieving token. ', err);
                 });
-            } else {
-                console.log('Unable to get permission to notify.');
-            }
-        });
-    }
+            });
+        } else {
+            console.log('Unable to get permission to notify.');
+        }
+    });
+}
 
     // --- KISTENTIMER APP-LOGIK ---
     if ('serviceWorker' in navigator) {
