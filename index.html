@@ -23,6 +23,7 @@
     nav { background-color: #0056b3; padding: 10px; display: flex; justify-content: center; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 100; }
     nav button { background-color: transparent; border: 1px solid #fff; color: #fff; font-size: 14px; padding: 8px 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s ease-in-out; }
     nav button.active { background-color: #fff; color: #0056b3; font-weight: bold; }
+    /* NEU: Eigener Style für den Ansicht-Umschalter */
     nav button#view-toggle-btn { border-color: #ffc107; color: #ffc107; }
     .page { display: none; }
     .page.active { display: block; }
@@ -31,11 +32,11 @@
     .machine { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease; }
     .machine.sortable-ghost { opacity: 0.4; background: #cce5ff; }
     .machine.box-full { border-color: #F44336; box-shadow: 0 0 15px rgba(244, 67, 54, 0.5); }
-    .machine.paused .header, .machine.paused .view-detail, .machine.paused .view-compact { opacity: 0.65; }
-    .machine.paused { border-style: dashed; }
-
+    .machine.paused { opacity: 0.65; border-style: dashed; }
+    
     .header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-    .drag-handle { font-size: 24px; color: var(--handle-color); cursor: grab; padding: 0 10px; margin-left: -10px; }
+    /* NEU: Drag-Griff für besseres Scrollen */
+    .drag-handle { font-size: 24px; color: var(--handle-color); cursor: grab; padding: 0 10px; margin-left: -10px; user-select: none; }
     .drag-handle:active { cursor: grabbing; }
     .icon { font-weight: bold; font-size: 20px; width: 30px; height: 30px; border-radius: 50%; color: white; text-align: center; line-height: 30px; display: flex; align-items: center; justify-content: center; }
     .E { background: #4CAF50; } .KM { background: #2196F3; } .A { background: #F44336; }
@@ -48,17 +49,20 @@
     .progress-bar.green { background: #4CAF50; } .progress-bar.orange { background: #FF9800; } .progress-bar.red { background: #F44336; }
     .time-info, .shift-info { margin-top: 8px; font-size: 0.9em; }
     
-    /* --- Kompakt-Ansicht --- */
+    /* --- NEU: Kompakt-Ansicht --- */
     #overview-machine-list.compact-view { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
-    .compact-view .machine { padding: 10px; text-align: center; }
-    .compact-view .machine .header { justify-content: center; }
-    .compact-view .machine .drag-handle { position: absolute; top: 5px; left: 5px; }
+    .compact-view .machine { padding: 10px; text-align: center; position: relative; }
+    .compact-view .machine .header { justify-content: center; margin-bottom: 5px; }
+    .compact-view .machine .drag-handle { position: absolute; top: 0px; left: 0px; }
     
     .view-compact { align-items: center; justify-content: center; flex-direction: column; }
-    .circle-progress { width: 100px; height: 100px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; color: #333; margin: 10px auto 5px; background: conic-gradient(var(--circle-blue) 0%, var(--circle-bg) 0%); transition: background 0.3s ease; }
-    .circle-progress .time-left { font-size: 1.1em; }
+    .circle-progress { width: 100px; height: 100px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; color: #333; margin: 5px auto 5px; background: conic-gradient(var(--circle-blue) 0%, var(--circle-bg) 0%); transition: background 0.3s ease; }
+    .circle-progress .time-left { font-size: 1.2em; }
+    .circle-progress .time-left span { font-size: 0.6em; font-weight: normal; }
     .compact-percentage { font-size: 0.9em; color: #555; font-weight: bold; }
-
+    .compact-view .machine .header div:not(.icon) { font-weight: bold; }
+    .compact-view .machine .icon { margin-left: auto; }
+    
     /* Standardmäßig Detail-Ansicht zeigen, Kompakt-Ansicht verstecken */
     .machine .view-compact { display: none; }
     .machine .view-detail { display: block; }
@@ -67,7 +71,7 @@
     .compact-view .machine .view-detail { display: none; }
     
     /* --- Allgemeine UI-Elemente --- */
-    input[type="text"], select { width: calc(100% - 20px); padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; }
+    input[type="text"], input[type="number"], select { width: calc(100% - 20px); padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; }
     button { background-color: var(--primary-color); color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-right: 5px; margin-top: 10px; }
     button:hover { background-color: var(--primary-hover); }
     .add-machine-container, .admin-list-container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 20px; }
@@ -120,7 +124,6 @@
             <button onclick="addMachine()">Maschine hinzufügen</button>
             <button onclick="initPushNotifications()">Push-Benachrichtigungen aktivieren</button>
         </div>
-
         <div class="admin-list-container">
             <h2>Maschinen verwalten</h2>
             <div id="admin-machine-list"></div>
@@ -128,48 +131,29 @@
     </div>
 </div>
 
-<div id="editMachineModal" class="modal">
-    <div class="modal-content">
-        <span class="close-button" onclick="closeEditModal()">&times;</span>
-        <h2>Maschine bearbeiten</h2>
-        <input type="hidden" id="editMachineId" />
-        <label>Name:<br /><input type="text" id="editName" /></label>
-        <label>Typ:<br />
-            <select id="editType">
-                <option value="E">E (Engel)</option>
-                <option value="KM">KM (KraussMaffei)</option>
-                <option value="A">A (Arburg)</option>
-            </select>
-        </label>
-        <label>Kavitätenanzahl:<br /><input type="number" id="editCavities" min="1" /></label>
-        <label>Zykluszeit (Sekunden):<br /><input type="number" id="editCycleTime" min="0.01" step="0.01" /></label>
-        <label>Kistenfüllmenge:<br /><input type="number" id="editBoxCapacity" min="1" /></label>
-        <label>Kisten in aktueller Schicht:<br /><input type="number" id="editBoxesCompletedShift" min="0" /></label>
-        <br>
-        <button onclick="saveMachineChanges()">Änderungen speichern</button>
-    </div>
-</div>
-<div id="forecastModal" class="modal">
-    <div class="modal-content">
-        <span class="close-button" onclick="closeForecastModal()">&times;</span>
-        <h2>Auftragsprognose</h2>
-        </div>
-</div>
+<div id="editMachineModal" class="modal"></div>
+<div id="forecastModal" class="modal"></div>
 
 <script type="module">
     // --- FIREBASE INITIALISIERUNG ---
-    // Ihr Firebase-Code hier...
+    // Ihr Firebase Code hier...
 
     // --- GLOBALE VARIABLEN & KONSTANTEN ---
     let machines = JSON.parse(localStorage.getItem('machines')) || [];
-    // ... Ihr restlicher Code für globale Variablen
+    let pushToken = localStorage.getItem('pushToken') || null;
+    const shifts = [
+        { name: "Frühschicht", startHour: 6, startMinute: 0, endHour: 13, endMinute: 50 },
+        { name: "Spätschicht", startHour: 14, startMinute: 0, endHour: 22, endMinute: 0 },
+        { name: "Nachtschicht", startHour: 22, startMinute: 0, endHour: 5, endMinute: 50, overnight: true }
+    ];
     const audio = new Audio('./assets/beep.mp3');
+
+    const overviewListEl = document.getElementById('overview-machine-list');
+    const adminListEl = document.getElementById('admin-machine-list');
 
     // --- SEITEN-NAVIGATION & VIEW-TOGGLE ---
     const pages = document.querySelectorAll('.page');
     const navButtons = document.querySelectorAll('nav button');
-    const overviewContainer = document.getElementById('overview-machine-list');
-    
     window.showPage = function(pageIdToShow) {
         pages.forEach(page => page.classList.toggle('active', page.id === pageIdToShow));
         navButtons.forEach(button => {
@@ -180,8 +164,8 @@
     }
 
     document.getElementById('view-toggle-btn').addEventListener('click', (e) => {
-        overviewContainer.classList.toggle('compact-view');
-        e.target.textContent = overviewContainer.classList.contains('compact-view') ? 'Details' : 'Kompakt';
+        overviewListEl.classList.toggle('compact-view');
+        e.target.textContent = overviewListEl.classList.contains('compact-view') ? 'Details' : 'Kompakt';
     });
     
     // --- DATEN-PERSISTENZ ---
@@ -190,7 +174,7 @@
     }
     
     // --- PUSH & EXTERNE SERVICES ---
-    // Ihr Code für initPushNotifications, schedulePushNotificationsFor, etc. ...
+    // ... Ihr Code für initPushNotifications, schedulePushNotificationsFor, etc.
 
     // --- RENDERING & UI ---
     function renderMachine(machine, container) {
@@ -198,7 +182,7 @@
         if (!div) {
             div = document.createElement('div');
             div.id = `machine-${container.id}-${machine.id}`;
-            div.dataset.id = machine.id; // Wichtig für Drag & Drop
+            div.dataset.id = machine.id;
             container.appendChild(div);
         }
         
@@ -223,21 +207,18 @@
                 <div class="icon ${machine.type}">${machine.type}</div>
                 <div>${machine.name}</div>
             </div>
-
             <div class="view-detail">
                 <label>Aktuelle Füllmenge:<br>
-                    <input type="number" class="fillInput" min="0" max="${machine.boxCapacity}" value="${Math.floor(machine.currentFill)}" ${!isAdminView ? 'disabled' : ''} />
+                    <input type="number" class="fillInput" min="0" max="${machine.boxCapacity}" value="${Math.floor(machine.currentFill)}" ${!isAdminView ? 'disabled' : ''}>
                 </label>
                 <div class="progress-container"><div class="progress-bar"></div></div>
                 <div class="time-info"></div>
                 <div class="shift-info"></div>
             </div>
-
             <div class="view-compact">
                 <div class="circle-progress"></div>
                 <div class="compact-percentage"></div>
             </div>
-
             ${actionsHtml}`;
         
         if (isAdminView) {
@@ -254,24 +235,19 @@
     }
 
     function renderAllMachines() {
-        const adminContainer = document.getElementById('admin-machine-list');
-        overviewContainer.innerHTML = '';
-        adminContainer.innerHTML = '';
-
+        overviewListEl.innerHTML = '';
+        adminListEl.innerHTML = '';
         machines.forEach(machine => {
-            renderMachine(machine, adminContainer);
+            renderMachine(machine, adminListEl);
             if (!machine.isPaused) {
-                renderMachine(machine, overviewContainer);
+                renderMachine(machine, overviewListEl);
             }
         });
-        
-        // UI für alle sichtbaren Maschinen sofort aktualisieren
         machines.forEach(updateMachineUI);
     }
     
     function updateMachineUI(machine) {
-        const containers = [overviewContainer, document.getElementById('admin-machine-list')];
-        containers.forEach(container => {
+        [overviewListEl, adminListEl].forEach(container => {
             const machineDiv = document.getElementById(`machine-${container.id}-${machine.id}`);
             if (!machineDiv) return;
 
@@ -281,22 +257,14 @@
             const percentage = (machine.currentFill / machine.boxCapacity) * 100;
             const displayPercentage = Math.min(100, percentage);
 
-            // Detail-Ansicht Elemente
+            // Detail-Ansicht
             const timeDiv = machineDiv.querySelector('.time-info');
-            if (timeDiv) {
-                if (machine.isPaused) {
-                    timeDiv.textContent = 'Pausiert';
-                } else {
-                    const fillTime = new Date(now.getTime() + secondsLeft * 1000);
-                    timeDiv.textContent = `Restzeit: ${formatTime(secondsLeft)} | Voll: ${formatTimeOfDay(fillTime)} Uhr`;
-                }
-            }
+            if (timeDiv) timeDiv.textContent = machine.isPaused ? 'Pausiert' : `Restzeit: ${formatTime(secondsLeft)} | Voll: ${formatTimeOfDay(new Date(now.getTime() + secondsLeft * 1000))} Uhr`;
+            
             const progressBar = machineDiv.querySelector('.progress-bar');
-            if(progressBar) {
-                progressBar.style.width = `${displayPercentage}%`;
-            }
+            if(progressBar) progressBar.style.width = `${displayPercentage}%`;
 
-            // Kompakt-Ansicht Elemente
+            // Kompakt-Ansicht
             const circleProgress = machineDiv.querySelector('.circle-progress');
             if (circleProgress) {
                 const colorVar = displayPercentage < 70 ? 'var(--circle-blue)' : (displayPercentage < 90 ? 'var(--circle-orange)' : 'var(--circle-red)');
@@ -304,36 +272,99 @@
                 circleProgress.innerHTML = `<span class="time-left">${machine.isPaused ? '||' : formatTime(secondsLeft)}</span>`;
             }
             const compactPercentageDiv = machineDiv.querySelector('.compact-percentage');
-            if(compactPercentageDiv) {
-                compactPercentageDiv.textContent = `${Math.floor(displayPercentage)}%`;
-            }
+            if(compactPercentageDiv) compactPercentageDiv.textContent = `${Math.floor(displayPercentage)}%`;
 
-            // Gemeinsame Elemente
+            // Gemeinsam
             const fillInput = machineDiv.querySelector('.fillInput');
-            if (fillInput && !machine.isFillingManually) {
-                fillInput.value = Math.floor(machine.currentFill);
-            }
-            // ... (Hier könnte noch der shift-info Code rein, der Einfachheit halber weggelassen)
+            if (fillInput && !machine.isFillingManually) fillInput.value = Math.floor(machine.currentFill);
         });
     }
 
-    // --- KERN-FUNKTIONEN ---
-    // Ihr Code für addMachine, togglePause, openEditModal, etc. ...
-    // ... Diese Funktionen müssen jetzt `renderAllMachines()` aufrufen, um die UI konsistent zu halten.
-    window.addMachine = function() { /* ... */ renderAllMachines(); }
-    window.deleteMachine = function(id) { /* ... */ saveMachines(); renderAllMachines(); }
-    window.saveMachineChanges = function() { /* ... */ saveMachines(); renderAllMachines(); closeEditModal(); }
-    // ... (Hier die vollen Definitionen der Funktionen einfügen)
-
+    // --- KERN-FUNKTIONEN ( onclick ) ---
+    // Damit onclick im HTML funktioniert, müssen die Funktionen an das window-Objekt gehängt werden.
+    window.addMachine = function() {
+        const name = document.getElementById('name').value.trim();
+        if (!name) { alert('Bitte Namen eingeben.'); return; }
+        machines.push({
+            id: Date.now(), name: name, type: document.getElementById('type').value,
+            cavities: parseInt(document.getElementById('cavities').value) || 1,
+            cycleTime: parseFloat(document.getElementById('cycleTime').value) || 10,
+            boxCapacity: parseInt(document.getElementById('boxCapacity').value) || 100,
+            currentFill: 0, lastUpdate: Date.now(), boxesCompleted: 0,
+            boxesCompletedShift: 0, isFillingManually: false,
+            lastShiftName: 'N/A', isPaused: false
+        });
+        saveMachines();
+        renderAllMachines();
+        document.getElementById('name').value = '';
+    }
+    window.togglePause = function(machineId) {
+        const machine = machines.find(m => m.id === machineId);
+        if (!machine) return;
+        machine.isPaused = !machine.isPaused;
+        if (!machine.isPaused) machine.lastUpdate = Date.now();
+        saveMachines();
+        renderAllMachines();
+    }
+    window.openEditModal = function(machineId) {
+        const machine = machines.find(m => m.id === machineId);
+        if (!machine) return;
+        document.getElementById('editMachineId').value = machine.id;
+        document.getElementById('editName').value = machine.name;
+        document.getElementById('editType').value = machine.type;
+        document.getElementById('editCavities').value = machine.cavities;
+        document.getElementById('editCycleTime').value = machine.cycleTime;
+        document.getElementById('editBoxCapacity').value = machine.boxCapacity;
+        document.getElementById('editBoxesCompletedShift').value = machine.boxesCompletedShift || 0;
+        document.getElementById('editMachineModal').style.display = 'block';
+    }
+    window.closeEditModal = function() { document.getElementById('editMachineModal').style.display = 'none'; }
+    window.saveMachineChanges = function() {
+        const machineId = parseInt(document.getElementById('editMachineId').value);
+        const machine = machines.find(m => m.id === machineId);
+        if (!machine) return;
+        machine.name = document.getElementById('editName').value.trim();
+        machine.type = document.getElementById('editType').value;
+        machine.cavities = parseInt(document.getElementById('editCavities').value) || 1;
+        machine.cycleTime = parseFloat(document.getElementById('editCycleTime').value) || 10;
+        machine.boxCapacity = parseInt(document.getElementById('editBoxCapacity').value) || 100;
+        machine.boxesCompletedShift = parseInt(document.getElementById('editBoxesCompletedShift').value) || 0;
+        machine.isPaused = false;
+        machine.lastUpdate = Date.now();
+        saveMachines();
+        renderAllMachines();
+        closeEditModal();
+    }
+    window.deleteMachine = function(machineId) {
+        if (confirm('Sind Sie sicher?')) {
+            machines = machines.filter(m => m.id !== machineId);
+            saveMachines();
+            renderAllMachines();
+        }
+    }
+    // ... (Prognose- und Push-Funktionen hier ebenfalls an window hängen)
+    window.openForecastModal = function(id){ /* ... */ };
+    window.closeForecastModal = function(){ /* ... */ };
+    window.calculateForecast = function(){ /* ... */ };
+    window.initPushNotifications = function(){ /* ... */ };
+    
     // --- HELPER-FUNKTIONEN ---
-    // ... Ihre formatTime, formatTimeOfDay, etc. Funktionen
-    function formatTime(sec) { /* ... */ }
-    function formatTimeOfDay(date) { /* ... */ }
-
+    function formatTime(sec) {
+        if (sec === Infinity) return '---';
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return `${m}m ${String(s).padStart(2, '0')}s`;
+    }
+    function formatTimeOfDay(date) {
+        const h = String(date.getHours()).padStart(2, '0');
+        const m = String(date.getMinutes()).padStart(2, '0');
+        return `${h}:${m}`;
+    }
+    
     // --- DRAG-AND-DROP LOGIK ---
     function initSortable(container) {
         new Sortable(container, {
-            handle: '.drag-handle', // WICHTIG: Nur am Griff anfassbar
+            handle: '.drag-handle', // NUR AM GRIFF ANFASSBAR
             animation: 150,
             ghostClass: 'sortable-ghost',
             onEnd: function (evt) {
@@ -342,39 +373,31 @@
                 const movedItem = machines.splice(oldIndex, 1)[0];
                 machines.splice(evt.newIndex, 0, movedItem);
                 saveMachines();
-                // Kein renderAllMachines() hier, um ein Flackern zu vermeiden, Sortable hat die UI schon angepasst.
             }
         });
     }
 
     // --- HAUPT-UPDATE-SCHLEIFE ---
     setInterval(() => {
-        const now = new Date();
         machines.forEach(machine => {
             if (!machine.isPaused && !machine.isFillingManually) {
-                const elapsedSec = (now.getTime() - machine.lastUpdate) / 1000;
-                const fullCycles = Math.floor(elapsedSec / machine.cycleTime);
-                if (fullCycles > 0) {
-                    machine.currentFill += fullCycles * machine.cavities;
-                    machine.lastUpdate += fullCycles * machine.cycleTime * 1000;
-                }
+                const elapsedSec = (new Date().getTime() - machine.lastUpdate) / 1000;
+                const producedParts = (elapsedSec * (machine.cavities / machine.cycleTime));
+                machine.currentFill += producedParts;
+                machine.lastUpdate = new Date().getTime();
                 
                 let wasBoxJustFilled = false;
                 while (machine.currentFill >= machine.boxCapacity) {
                     machine.currentFill -= machine.boxCapacity;
-                    machine.boxesCompleted++;
-                    machine.boxesCompletedShift++;
                     wasBoxJustFilled = true;
-                    machine.isBoxFull = true; // Flag setzen
                 }
                 if (wasBoxJustFilled) {
+                    machine.boxesCompleted++;
+                    machine.boxesCompletedShift++;
+                    machine.isBoxFull = true;
                     playBeep();
                     // schedulePushNotificationsFor(machine);
-                    setTimeout(() => { 
-                        machine.isBoxFull = false; 
-                        const div = document.getElementById(`machine-overview-machine-list-${machine.id}`);
-                        if(div) div.classList.remove('box-full');
-                    }, 3000);
+                    setTimeout(() => { machine.isBoxFull = false; renderAllMachines(); }, 3000);
                 }
             }
             updateMachineUI(machine);
@@ -384,14 +407,9 @@
 
     // --- INITIALISIERUNG ---
     document.addEventListener('DOMContentLoaded', () => {
-        // Funktionen global verfügbar machen für onclick="..."
-        window.openEditModal = function(id) { /*...*/ };
-        window.closeEditModal = function() { /*...*/ };
-        // ... (alle anderen onclick-Funktionen hier zuweisen)
-
         renderAllMachines();
-        initSortable(document.getElementById('overview-machine-list'));
-        initSortable(document.getElementById('admin-machine-list'));
+        initSortable(overviewListEl);
+        initSortable(adminListEl);
         showPage('overview-page');
     });
 
