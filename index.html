@@ -236,40 +236,49 @@
         });
     }
 
-    async function schedulePushNotificationsFor(machine) {
-        if (!pushToken) {
-            console.warn("Kein Push-Token vorhanden. Bitte zuerst aktivieren.");
-            return;
-        }
-        const partsPerSecond = machine.cavities / machine.cycleTime;
-        const secondsUntilFull = (machine.boxCapacity - machine.currentFill) / partsPerSecond;
-        const functionUrl = 'https://schedulenotification-xxhao7ipkq-uc.a.run.app';
-        const data = {
-            token: pushToken,
-            machineName: machine.name,
-            secondsUntilFull: secondsUntilFull
-        };
-        console.log(`[Frontend] Sende Planungs-Auftrag für ${machine.name} an das Backend.`);
-        try {
-            const response = await fetch(functionUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            const result = await response.json();
-            console.log('[Frontend] Antwort vom Backend:', result.message);
-        } catch (error) {
-            console.error("Fehler beim Aufrufen der scheduleNotification Funktion:", error);
-        }
+async function schedulePushNotificationsFor(machine) {
+    if (!pushToken) {
+        console.warn("Kein Push-Token vorhanden. Bitte zuerst aktivieren.");
+        return;
     }
 
-    function notifyBoxFull(machine) {
-        console.log(`Event "Kiste voll" für ${machine.name} ausgelöst. Push-Benachrichtigung sollte vom Server kommen.`);
+    // 1. Restzeit bis zum vollen Kasten berechnen
+    const partsPerSecond = machine.cavities / machine.cycleTime;
+    const secondsUntilFull = (machine.boxCapacity - machine.currentFill) / partsPerSecond;
+
+    // 2. Den gewünschten 60-Sekunden-Puffer abziehen
+    const notificationBufferSeconds = 60;
+    let scheduledDelaySeconds = secondsUntilFull - notificationBufferSeconds;
+
+    // 3. Sicherstellen, dass die Verzögerung nicht negativ ist
+    if (scheduledDelaySeconds < 1) {
+        // Wenn die Restzeit unter 60s liegt, senden wir die Benachrichtigung fast sofort
+        scheduledDelaySeconds = 1; // Sende mit 1s Verzögerung, um eine 0s-Verzögerung zu vermeiden
     }
 
-    function playBeep() {
-        audio.play().catch(e => console.error("Could not play sound:", e));
+    // 4. Daten vorbereiten und an das Backend senden (nur einmal!)
+    const functionUrl = 'https://schedulenotification-xxhao7ipkq-uc.a.run.app';
+    const data = {
+        token: pushToken,
+        machineName: machine.name,
+        secondsUntilFull: scheduledDelaySeconds // Wichtig: Der neue, kürzere Wert wird gesendet
+    };
+
+    console.log(`[Frontend] Planungs-Auftrag für ${machine.name} gesendet. Geplante Ausführung in ca. ${Math.round(scheduledDelaySeconds / 60)} Minuten.`);
+    
+    try {
+        const response = await fetch(functionUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await response.json();
+        console.log('[Frontend] Antwort vom Backend:', result.message);
+    } catch (error) {
+        console.error("Fehler beim Aufrufen der scheduleNotification Funktion:", error);
     }
+}
+
 
     // --- RENDERING & UI ---
     function renderMachine(machine, container, isOverview) {
