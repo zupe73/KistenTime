@@ -58,9 +58,6 @@
   <label>Kavitätenanzahl:<br /><input type="number" id="cavities" min="1" value="1" /></label>
   <label>Zykluszeit (Sekunden):<br /><input type="number" id="cycleTime" min="0.01" step="0.01" value="10" /></label>
   <label>Kistenfüllmenge:<br /><input type="number" id="boxCapacity" min="1" value="100" /></label>
-  <label style="display: inline-flex; align-items: center; gap: 10px;">
-      <input type="checkbox" id="runsOnWeekend" checked /> Läuft am Wochenende
-  </label>
   <br>
   <button onclick="addMachine()">Maschine hinzufügen</button>
   <button onclick="initPushNotifications()">Push-Benachrichtigungen aktivieren</button>
@@ -83,9 +80,6 @@
     <label>Zykluszeit (Sekunden):<br /><input type="number" id="editCycleTime" min="0.01" step="0.01" /></label>
     <label>Kistenfüllmenge:<br /><input type="number" id="editBoxCapacity" min="1" /></label>
     <label>Kisten in aktueller Schicht:<br /><input type="number" id="editBoxesCompletedShift" min="0" /></label>
-    <label style="display: inline-flex; align-items: center; gap: 10px;">
-      <input type="checkbox" id="editRunsOnWeekend" /> Läuft am Wochenende
-    </label>
     <br>
     <button onclick="saveMachineChanges()">Änderungen speichern</button>
   </div>
@@ -96,13 +90,26 @@
     <span class="close-button" onclick="closeForecastModal()">&times;</span>
     <h2>Auftragsprognose</h2>
     <input type="hidden" id="forecastMachineId" />
-    <label>Aktuelle Füllmenge der jetzigen Kiste:<br />
-      <input type="number" id="forecastCurrentFill" min="0" value="0" />
-    </label>
+    
     <label>Gesamtanzahl der Kisten im Auftrag:<br />
       <input type="number" id="forecastTotalBoxes" min="1" value="10" />
     </label>
+    
+    <label>Aktuelle Kistennummer davon:<br />
+      <input type="number" id="forecastCurrentBoxNumber" min="1" value="1" />
+    </label>
+
+    <label>Füllmenge dieser aktuellen Kiste:<br />
+      <input type="number" id="forecastCurrentFill" min="0" value="0" />
+    </label>
+
+    <label style="display: inline-flex; align-items: center; gap: 10px;">
+      <input type="checkbox" id="forecastRunsOnWeekend" checked /> Läuft am Wochenende
+    </label>
+    
+    <br>
     <button onclick="calculateForecast()">Prognose berechnen</button>
+
     <div id="forecastResult" style="margin-top: 20px; font-size: 1.1em; font-weight: bold;"></div>
   </div>
 </div>
@@ -120,13 +127,11 @@
         messagingSenderId: "161547195519",
         appId: "1:161547195519:web:3a0d8fa3c90960eaa7db4a"
     };
-
     const app = initializeApp(firebaseConfig);
     const messaging = getMessaging(app);
 
     // --- PUSH-BENACHRICHTIGUNGS-LOGIK ---
     let pushToken = localStorage.getItem('pushToken') || null;
-
     window.initPushNotifications = function() {
         Notification.requestPermission().then((permission) => {
             if (permission === 'granted') {
@@ -236,7 +241,6 @@
             cavities: parseInt(document.getElementById('cavities').value) || 1,
             cycleTime: parseFloat(document.getElementById('cycleTime').value) || 10,
             boxCapacity: parseInt(document.getElementById('boxCapacity').value) || 100,
-            runsOnWeekend: document.getElementById('runsOnWeekend').checked,
             currentFill: 0,
             lastUpdate: Date.now(),
             boxesCompleted: 0,
@@ -285,20 +289,20 @@
 
         div.innerHTML = `
             <div class="header">
-                <div class="icon ${machine.type}">${machine.type}</div>
-                <div>${machine.name}</div>
-            </div>
-            <label>Aktuelle Füllmenge:<br>
-                <input type="number" id="fillInput-${machine.id}" min="0" max="${machine.boxCapacity}" value="${Math.floor(machine.currentFill)}" />
+                <div class="icon <span class="math-inline">\{machine\.type\}"\></span>{machine.type}</div>
+                <div><span class="math-inline">\{machine\.name\}</div\>
+</div\>
+<label\>Aktuelle Füllmenge\:<br\>
+<input type\="number" id\="fillInput\-</span>{machine.id}" min="0" max="<span class="math-inline">\{machine\.boxCapacity\}" value\="</span>{Math.floor(machine.currentFill)}" />
             </label>
             <div class="progress-container"><div class="progress-bar"></div></div>
-            <div class="time-info" id="time-${machine.id}"></div>
-            <div class="shift-info" id="shift-info-${machine.id}"></div>
+            <div class="time-info" id="time-<span class="math-inline">\{machine\.id\}"\></div\>
+<div class\="shift\-info" id\="shift\-info\-</span>{machine.id}"></div>
             <div class="machine-actions">
-                <button class="${pauseButtonClass}" onclick="togglePause(${machine.id})">${pauseButtonText}</button>
-                <button class="edit" onclick="openEditModal(${machine.id})">Bearbeiten</button>
-                <button class="forecast" onclick="openForecastModal(${machine.id})">Prognose</button>
-                <button class="delete" onclick="deleteMachine(${machine.id})">Löschen</button>
+                <button class="<span class="math-inline">\{pauseButtonClass\}" onclick\="togglePause\(</span>{machine.id})"><span class="math-inline">\{pauseButtonText\}</button\>
+<button class\="edit" onclick\="openEditModal\(</span>{machine.id})">Bearbeiten</button>
+                <button class="forecast" onclick="openForecastModal(<span class="math-inline">\{machine\.id\}\)"\>Prognose</button\>
+<button class\="delete" onclick\="deleteMachine\(</span>{machine.id})">Löschen</button>
             </div>`;
         
         machine.fillInput = div.querySelector(`#fillInput-${machine.id}`);
@@ -333,7 +337,7 @@
     function formatTimeOfDay(date) {
         const h = String(date.getHours()).padStart(2, '0');
         const m = String(date.getMinutes()).padStart(2, '0');
-        return `${h}:${m}`;
+        return `<span class="math-inline">\{h\}\:</span>{m}`;
     }
 
     function notifyBoxFull(machine) {
@@ -355,7 +359,6 @@
         document.getElementById('editCycleTime').value = machine.cycleTime;
         document.getElementById('editBoxCapacity').value = machine.boxCapacity;
         document.getElementById('editBoxesCompletedShift').value = machine.boxesCompletedShift || 0;
-        document.getElementById('editRunsOnWeekend').checked = machine.runsOnWeekend;
         document.getElementById('editMachineModal').style.display = 'block';
     }
 
@@ -374,7 +377,6 @@
         machine.cycleTime = parseFloat(document.getElementById('editCycleTime').value) || 10;
         machine.boxCapacity = parseInt(document.getElementById('editBoxCapacity').value) || 100;
         machine.boxesCompletedShift = parseInt(document.getElementById('editBoxesCompletedShift').value) || 0;
-        machine.runsOnWeekend = document.getElementById('editRunsOnWeekend').checked;
         
         machine.isPaused = false; 
         machine.lastUpdate = Date.now();
@@ -395,8 +397,10 @@
     // --- PROGNOSE-FUNKTIONEN ---
     window.openForecastModal = function(machineId) {
         document.getElementById('forecastMachineId').value = machineId;
-        document.getElementById('forecastCurrentFill').value = '0';
         document.getElementById('forecastTotalBoxes').value = '10';
+        document.getElementById('forecastCurrentBoxNumber').value = '1';
+        document.getElementById('forecastCurrentFill').value = '0';
+        document.getElementById('forecastRunsOnWeekend').checked = true;
         document.getElementById('forecastResult').innerHTML = '';
         document.getElementById('forecastModal').style.display = 'block';
     }
@@ -408,14 +412,22 @@
         const machine = machines.find(m => m.id === machineId);
         if (!machine) return;
 
-        const currentFill = parseInt(document.getElementById('forecastCurrentFill').value) || 0;
         const totalBoxes = parseInt(document.getElementById('forecastTotalBoxes').value) || 0;
-        if (totalBoxes <= 0) return;
+        const currentBoxNumber = parseInt(document.getElementById('forecastCurrentBoxNumber').value) || 1;
+        const currentFill = parseInt(document.getElementById('forecastCurrentFill').value) || 0;
+        const runsOnWeekend = document.getElementById('forecastRunsOnWeekend').checked;
+
+        if (totalBoxes <= 0 || currentBoxNumber > totalBoxes) {
+            alert('Bitte gültige Auftragsdaten eingeben (Aktuelle Kiste darf nicht größer als Gesamt sein).');
+            return;
+        }
 
         const partsPerSecond = machine.cavities / machine.cycleTime;
         const remainingPartsInCurrentBox = Math.max(0, machine.boxCapacity - currentFill);
-        const remainingFullBoxes = totalBoxes - 1;
-        let secondsToProduce = remainingPartsInCurrentBox / partsPerSecond;
+        const timeForCurrentBox = remainingPartsInCurrentBox / partsPerSecond;
+        const remainingFullBoxes = totalBoxes - currentBoxNumber;
+        
+        let secondsToProduce = timeForCurrentBox;
         if (remainingFullBoxes > 0) {
             secondsToProduce += (remainingFullBoxes * machine.boxCapacity) / partsPerSecond;
         }
@@ -426,7 +438,7 @@
             const currentHour = finalCompletionDate.getHours();
             let isPauseHour = false;
             
-            if (!machine.runsOnWeekend) {
+            if (!runsOnWeekend) {
                 if ((currentDay === 6 && currentHour >= 4) || (currentDay === 0) || (currentDay === 1 && currentHour < 7)) {
                     isPauseHour = true;
                 }
@@ -447,7 +459,6 @@
     setInterval(() => {
         const now = new Date();
         const currentShift = getCurrentShift(now);
-
         machines.forEach(machine => {
             if (!machine.isFillingManually && !machine.isPaused) {
                 const elapsedMs = now.getTime() - machine.lastUpdate;
