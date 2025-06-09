@@ -47,14 +47,14 @@
   .view-switcher { margin-bottom: 20px; }
   .view-switcher button { padding: 8px 12px; border: 1px solid #ccc; background-color: #f8f9fa; color: #333; cursor: pointer; }
   .view-switcher button.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
-  #overview-machine-list.compact-view { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+  #overview-machine-list.compact-view { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
   @media (max-width: 600px) { #overview-machine-list.compact-view { grid-template-columns: 1fr; } }
-  .machine-compact { display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; cursor: grab; }
-  .machine-compact .machine-name { font-weight: bold; font-size: 1.1em; margin-bottom: 10px; }
-  .progress-circle { width: 90px; height: 90px; border-radius: 50%; display: flex; justify-content: center; align-items: center; position: relative; background: conic-gradient( var(--progress-color, #4CAF50) calc(var(--progress-percent, 0) * 1%), #e9ecef 0 ); }
-  .progress-circle::before { content: ''; position: absolute; width: 75px; height: 75px; background: #fff; border-radius: 50%; }
-  .progress-circle .time-remaining { position: relative; z-index: 1; font-size: 1.1em; font-weight: bold; color: #333; }
-  .machine-compact .fill-level { margin-top: 10px; font-size: 1em; font-weight: bold; color: #555; }
+  .machine-compact { display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #fff; border: 1px solid #ddd; padding: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; cursor: grab; }
+  .machine-compact .machine-name { font-weight: bold; font-size: 0.9em; margin-bottom: 8px; }
+  .progress-circle { width: 80px; height: 80px; border-radius: 50%; display: flex; justify-content: center; align-items: center; position: relative; background: conic-gradient( var(--progress-color, #4CAF50) calc(var(--progress-percent, 0) * 1%), #e9ecef 0 ); }
+  .progress-circle::before { content: ''; position: absolute; width: 66px; height: 66px; background: #fff; border-radius: 50%; }
+  .progress-circle .time-remaining { position: relative; z-index: 1; font-size: 1em; font-weight: bold; color: #333; }
+  .machine-compact .fill-level { margin-top: 8px; font-size: 0.9em; font-weight: bold; color: #555; }
 </style>
 <link rel="manifest" href="./manifest.json" />
 </head>
