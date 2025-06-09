@@ -339,26 +339,30 @@
         document.getElementById('editMachineModal').style.display = 'none';
     }
 
-    window.saveMachineChanges = function() {
-        const machineId = parseInt(document.getElementById('editMachineId').value);
-        const machine = machines.find(m => m.id === machineId);
-        if (!machine) return;
-        machine.name = document.getElementById('editName').value.trim();
-        machine.type = document.getElementById('editType').value;
-        machine.cavities = parseInt(document.getElementById('cavities').value) || 1;
-        machine.cycleTime = parseFloat(document.getElementById('editCycleTime').value) || 10;
-        machine.boxCapacity = parseInt(document.getElementById('boxCapacity').value) || 100;
-        machine.boxesCompletedShift = parseInt(document.getElementById('editBoxesCompletedShift').value) || 0;
-        
-        // Beim Speichern von Änderungen wird die Maschine als "nicht pausiert" angenommen
-        machine.isPaused = false; 
-        machine.lastUpdate = Date.now();
+   
 
-        saveMachines();
-        renderMachine(machine);
-        closeEditModal();
-        schedulePushNotificationsFor(machine);
-    }
+window.saveMachineChanges = function() {
+    const machineId = parseInt(document.getElementById('editMachineId').value);
+    const machine = machines.find(m => m.id === machineId);
+    if (!machine) return;
+    
+    // Liest jetzt die Werte aus den korrekten "edit"-Feldern im Modal
+    machine.name = document.getElementById('editName').value.trim();
+    machine.type = document.getElementById('editType').value;
+    machine.cavities = parseInt(document.getElementById('editCavities').value) || 1;           // KORRIGIERT
+    machine.cycleTime = parseFloat(document.getElementById('editCycleTime').value) || 10;
+    machine.boxCapacity = parseInt(document.getElementById('editBoxCapacity').value) || 100;   // KORRIGIERT
+    machine.boxesCompletedShift = parseInt(document.getElementById('editBoxesCompletedShift').value) || 0;
+    
+    // Setzt den Status zurück und aktualisiert den Zeitstempel
+    machine.isPaused = false; 
+    machine.lastUpdate = Date.now();
+
+    saveMachines();
+    renderMachine(machine); // Rendert die Maschine neu, um Pausen-Button etc. zu aktualisieren
+    closeEditModal();
+    schedulePushNotificationsFor(machine); // Plant die nächste Benachrichtigung neu
+}
 
     window.deleteMachine = function(machineId) {
         if (confirm('Sind Sie sicher?')) {
