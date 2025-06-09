@@ -1,6 +1,6 @@
 {
-  "name": "KistenTimer v1",
-  "short_name": "Timer App",
+  "name": "KistenTimer v3",
+  "short_name": "KistenTimer",
   "description": "Eine App zur Überwachung von Maschinenzeiten und Füllständen.",
   "start_url": "./index.html",
   "display": "standalone",
