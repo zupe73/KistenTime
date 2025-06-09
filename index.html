@@ -38,7 +38,6 @@
   .machine-actions button.resume { background-color: #4CAF50; }
   .machine-actions button.forecast { background-color: #9C27B0; }
 
-  /* --- NEUES NAVIGATIONS-STYLING --- */
   nav { background-color: #0056b3; padding: 10px; display: flex; justify-content: center; gap: 10px; position: sticky; top: 0; z-index: 1; }
   nav button { background-color: transparent; border: 1px solid #fff; color: #fff; font-size: 14px; padding: 8px 12px; }
   nav button.active { background-color: #fff; color: #0056b3; font-weight: bold; }
@@ -137,8 +136,15 @@
     // --- FIREBASE INITIALISIERUNG ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
     import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-messaging.js";
-    // Fügen Sie hier Ihre Firebase-Konfiguration ein
-    const firebaseConfig = { apiKey: "...", authDomain: "...", projectId: "...", ... };
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCptp989CDyP2I6MrwXdM14WgFvzadEF5k",
+        authDomain: "kistentimer.firebaseapp.com",
+        projectId: "kistentimer",
+        storageBucket: "kistentimer.appspot.com",
+        messagingSenderId: "161547195519",
+        appId: "1:161547195519:web:3a0d8fa3c90960eaa7db4a"
+    };
     const app = initializeApp(firebaseConfig);
     const messaging = getMessaging(app);
 
@@ -166,11 +172,63 @@
     }
 
     // --- PUSH & EXTERNE SERVICES ---
-    window.initPushNotifications = function() { /* Ihre Funktion hier */ };
-    async function schedulePushNotificationsFor(machine) { /* Ihre Funktion hier */ }
+    window.initPushNotifications = function() {
+        Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+                console.log('Notification permission granted.');
+                navigator.serviceWorker.ready.then((registration) => {
+                    const vapidKey = 'BMehjID94jiDYaX4StW5gIoV9Ct9PrMqT3gZtoyl5mfOE4aiOyINP6n0D4RmHQvoJGi3Ll0gPPh0wYHomQkZmuU';
+                    getToken(messaging, { vapidKey: vapidKey, serviceWorkerRegistration: registration })
+                        .then((currentToken) => {
+                            if (currentToken) {
+                                console.log('Firebase Push Token:', currentToken);
+                                alert('Push-Benachrichtigungen erfolgreich aktiviert!');
+                                pushToken = currentToken;
+                                localStorage.setItem('pushToken', currentToken);
+                            } else {
+                                console.log('No registration token available.');
+                            }
+                        }).catch((err) => {
+                            console.error('Error retrieving token:', err);
+                        });
+                });
+            } else {
+                console.log('Unable to get permission to notify.');
+            }
+        });
+    }
+
+    async function schedulePushNotificationsFor(machine) {
+        if (!pushToken) {
+            console.warn("Kein Push-Token vorhanden. Bitte zuerst aktivieren.");
+            return;
+        }
+        const partsPerSecond = machine.cavities / machine.cycleTime;
+        const secondsUntilFull = (machine.boxCapacity - machine.currentFill) / partsPerSecond;
+        const functionUrl = 'https://schedulenotification-xxhao7ipkq-uc.a.run.app';
+        const data = {
+            token: pushToken,
+            machineName: machine.name,
+            secondsUntilFull: secondsUntilFull
+        };
+        console.log(`[Frontend] Sende Planungs-Auftrag für ${machine.name} an das Backend.`);
+        try {
+            const response = await fetch(functionUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            console.log('[Frontend] Antwort vom Backend:', result.message);
+        } catch (error) {
+            console.error("Fehler beim Aufrufen der scheduleNotification Funktion:", error);
+        }
+    }
+
     function notifyBoxFull(machine) {
         console.log(`Event "Kiste voll" für ${machine.name} ausgelöst. Push-Benachrichtigung sollte vom Server kommen.`);
     }
+
     function playBeep() {
         audio.play().catch(e => console.error("Could not play sound:", e));
     }
@@ -213,14 +271,16 @@
 
         if (!isOverview) {
             const fillInput = div.querySelector(`.fillInput`);
-            fillInput.addEventListener('focus', () => machine.isFillingManually = true);
-            fillInput.addEventListener('blur', (e) => {
-                machine.isFillingManually = false;
-                let val = parseInt(e.target.value) || 0;
-                machine.currentFill = Math.min(machine.boxCapacity, Math.max(0, val));
-                machine.lastUpdate = Date.now();
-                saveMachines();
-            });
+            if(fillInput) {
+                fillInput.addEventListener('focus', () => machine.isFillingManually = true);
+                fillInput.addEventListener('blur', (e) => {
+                    machine.isFillingManually = false;
+                    let val = parseInt(e.target.value) || 0;
+                    machine.currentFill = Math.min(machine.boxCapacity, Math.max(0, val));
+                    machine.lastUpdate = Date.now();
+                    saveMachines();
+                });
+            }
         }
     }
 
@@ -232,10 +292,10 @@
         adminContainer.innerHTML = '';
 
         machines.forEach(machine => {
+            renderMachine(machine, adminContainer, false);
             if (!machine.isPaused) {
                 renderMachine(machine, overviewContainer, true);
             }
-            renderMachine(machine, adminContainer, false);
         });
     }
     
@@ -250,33 +310,41 @@
             const secondsLeftForCurrentBox = machine.isPaused ? Infinity : (machine.boxCapacity - machine.currentFill) / partsPerSecond;
 
             const timeDiv = machineDiv.querySelector('.time-info');
-            if (machine.isPaused) {
-                timeDiv.textContent = 'Pausiert';
-            } else {
-                const fillTime = new Date(now.getTime() + secondsLeftForCurrentBox * 1000);
-                timeDiv.textContent = `Restzeit: ${formatTime(secondsLeftForCurrentBox)} | Voll: ${formatTimeOfDay(fillTime)} Uhr`;
+            if (timeDiv) {
+                if (machine.isPaused) {
+                    timeDiv.textContent = 'Pausiert';
+                } else {
+                    const fillTime = new Date(now.getTime() + secondsLeftForCurrentBox * 1000);
+                    timeDiv.textContent = `Restzeit: ${formatTime(secondsLeftForCurrentBox)} | Voll: ${formatTimeOfDay(fillTime)} Uhr`;
+                }
             }
-
-            if (!machine.isFillingManually) {
-                machineDiv.querySelector('.fillInput').value = Math.floor(machine.currentFill);
+            
+            const fillInput = machineDiv.querySelector('.fillInput');
+            if (fillInput && !machine.isFillingManually) {
+                fillInput.value = Math.floor(machine.currentFill);
             }
 
             const progressBar = machineDiv.querySelector('.progress-bar');
-            const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
-            progressBar.style.width = `${Math.min(100, progressPercent)}%`;
-            progressBar.className = 'progress-bar';
-            if (progressPercent < 70) progressBar.classList.add('green');
-            else if (progressPercent < 90) progressBar.classList.add('orange');
-            else progressBar.classList.add('red');
+            if(progressBar) {
+                const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
+                progressBar.style.width = `${Math.min(100, progressPercent)}%`;
+                progressBar.className = 'progress-bar';
+                if (progressPercent < 70) progressBar.classList.add('green');
+                else if (progressPercent < 90) progressBar.classList.add('orange');
+                else progressBar.classList.add('red');
+            }
             
-            const shiftEndTime = getShiftEndTime(now, currentShift);
-            const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
-            const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor((remainingShiftTimeSec * partsPerSecond) / machine.boxCapacity);
-            machineDiv.querySelector('.shift-info').textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
+            const shiftInfoDiv = machineDiv.querySelector('.shift-info');
+            if(shiftInfoDiv) {
+                const shiftEndTime = getShiftEndTime(now, currentShift);
+                const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
+                const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor((remainingShiftTimeSec * partsPerSecond) / machine.boxCapacity);
+                shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
+            }
         });
     }
 
-    // --- KERN-FUNKTIONEN (Maschinen hinzufügen, bearbeiten, etc.) ---
+    // --- KERN-FUNKTIONEN ---
     window.addMachine = function() {
         const name = document.getElementById('name').value.trim();
         if (!name) { alert('Bitte Namen eingeben.'); return; }
@@ -300,37 +368,163 @@
         renderAllMachines();
         clearInputs();
     }
-    function clearInputs() { /* Ihre Funktion hier */ }
+
+    function clearInputs() {
+        document.getElementById('name').value = '';
+        document.getElementById('cavities').value = '1';
+        document.getElementById('cycleTime').value = '10';
+        document.getElementById('boxCapacity').value = '100';
+    }
+
     window.togglePause = function(machineId) {
         const machine = machines.find(m => m.id === machineId);
         if (!machine) return;
         machine.isPaused = !machine.isPaused;
         if (!machine.isPaused) machine.lastUpdate = Date.now();
         saveMachines();
-        renderAllMachines();
+        renderAllMachines(); // Wichtig: Komplette UI neu rendern
     }
-    window.openEditModal = function(machineId) { /* Ihre Funktion hier */ }
-    window.closeEditModal = function() { /* Ihre Funktion hier */ }
-    window.saveMachineChanges = function() { /* Ihre Funktion hier */ }
-    window.deleteMachine = function(machineId) { /* Ihre Funktion hier */ }
+
+    window.openEditModal = function(machineId) {
+        const machine = machines.find(m => m.id === machineId);
+        if (!machine) return;
+        document.getElementById('editMachineId').value = machine.id;
+        document.getElementById('editName').value = machine.name;
+        document.getElementById('editType').value = machine.type;
+        document.getElementById('editCavities').value = machine.cavities;
+        document.getElementById('editCycleTime').value = machine.cycleTime;
+        document.getElementById('editBoxCapacity').value = machine.boxCapacity;
+        document.getElementById('editBoxesCompletedShift').value = machine.boxesCompletedShift || 0;
+        document.getElementById('editMachineModal').style.display = 'block';
+    }
+
+    window.closeEditModal = function() {
+        document.getElementById('editMachineModal').style.display = 'none';
+    }
+
+    window.saveMachineChanges = function() {
+        const machineId = parseInt(document.getElementById('editMachineId').value);
+        const machine = machines.find(m => m.id === machineId);
+        if (!machine) return;
+        
+        machine.name = document.getElementById('editName').value.trim();
+        machine.type = document.getElementById('editType').value;
+        machine.cavities = parseInt(document.getElementById('editCavities').value) || 1;
+        machine.cycleTime = parseFloat(document.getElementById('editCycleTime').value) || 10;
+        machine.boxCapacity = parseInt(document.getElementById('editBoxCapacity').value) || 100;
+        machine.boxesCompletedShift = parseInt(document.getElementById('editBoxesCompletedShift').value) || 0;
+        
+        machine.isPaused = false; 
+        machine.lastUpdate = Date.now();
+        saveMachines();
+        renderAllMachines();
+        closeEditModal();
+    }
+
+    window.deleteMachine = function(machineId) {
+        if (confirm('Sind Sie sicher?')) {
+            machines = machines.filter(m => m.id !== machineId);
+            saveMachines();
+            renderAllMachines();
+        }
+    }
     
     // --- PROGNOSE-FUNKTIONEN ---
-    window.openForecastModal = function(machineId) { /* Ihre Funktion hier */ }
-    window.closeForecastModal = function() { /* Ihre Funktion hier */ }
-    window.calculateForecast = function() { /* Ihre Funktion hier */ }
+    window.openForecastModal = function(machineId) {
+        document.getElementById('forecastMachineId').value = machineId;
+        document.getElementById('forecastTotalBoxes').value = '10';
+        document.getElementById('forecastCurrentBoxNumber').value = '1';
+        document.getElementById('forecastCurrentFill').value = '0';
+        document.getElementById('forecastRunsOnWeekend').checked = true;
+        document.getElementById('forecastResult').innerHTML = '';
+        document.getElementById('forecastModal').style.display = 'block';
+    }
+
+    window.closeForecastModal = function() {
+        document.getElementById('forecastModal').style.display = 'none';
+    }
+
+    window.calculateForecast = function() {
+        const machineId = parseInt(document.getElementById('forecastMachineId').value);
+        const machine = machines.find(m => m.id === machineId);
+        if (!machine) return;
+
+        const totalBoxes = parseInt(document.getElementById('forecastTotalBoxes').value) || 0;
+        const currentBoxNumber = parseInt(document.getElementById('forecastCurrentBoxNumber').value) || 1;
+        const currentFill = parseInt(document.getElementById('forecastCurrentFill').value) || 0;
+        const runsOnWeekend = document.getElementById('forecastRunsOnWeekend').checked;
+
+        if (totalBoxes <= 0 || currentBoxNumber > totalBoxes) {
+            alert('Bitte gültige Auftragsdaten eingeben (Aktuelle Kiste darf nicht größer als Gesamt sein).');
+            return;
+        }
+
+        const partsPerSecond = machine.cavities / machine.cycleTime;
+        const remainingPartsInCurrentBox = Math.max(0, machine.boxCapacity - currentFill);
+        const timeForCurrentBox = remainingPartsInCurrentBox / partsPerSecond;
+        const remainingFullBoxes = totalBoxes - currentBoxNumber;
+        
+        let secondsToProduce = timeForCurrentBox;
+        if (remainingFullBoxes > 0) {
+            secondsToProduce += (remainingFullBoxes * machine.boxCapacity) / partsPerSecond;
+        }
+
+        let finalCompletionDate = new Date();
+        while (secondsToProduce > 0) {
+            const currentDay = finalCompletionDate.getDay();
+            const currentHour = finalCompletionDate.getHours();
+            let isPauseHour = false;
+            
+            if (!runsOnWeekend) {
+                if ((currentDay === 6 && currentHour >= 4) || (currentDay === 0) || (currentDay === 1 && currentHour < 7)) {
+                    isPauseHour = true;
+                }
+            }
+            
+            if (!isPauseHour) {
+                secondsToProduce -= 3600;
+            }
+            finalCompletionDate.setHours(finalCompletionDate.getHours() + 1);
+        }
+        
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+        const formattedDate = finalCompletionDate.toLocaleDateString('de-DE', options);
+        document.getElementById('forecastResult').innerHTML = `Der Auftrag ist voraussichtlich fertig am:<br><strong>${formattedDate} Uhr</strong>`;
+    }
 
     // --- HELPER-FUNKTIONEN ---
-    function formatTime(sec) { /* Ihre Funktion hier */ }
-    function formatTimeOfDay(date) { /* Ihre Funktion hier */ }
+    function formatTime(sec) {
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return `${m}m ${String(s).padStart(2, '0')}s`;
+    }
+    
+    function formatTimeOfDay(date) {
+        const h = String(date.getHours()).padStart(2, '0');
+        const m = String(date.getMinutes()).padStart(2, '0');
+        return `${h}:${m}`;
+    }
     
     // --- DRAG-AND-DROP LOGIK ---
     new Sortable(document.getElementById('overview-machine-list'), {
         animation: 150,
         ghostClass: 'sortable-ghost',
         onEnd: function (evt) {
-            const movedItem = machines.splice(evt.oldIndex, 1)[0];
+            // Finde die verschobene Maschine im `machines`-Array
+            const movedItem = machines.find(m => m.id === parseInt(evt.item.dataset.id));
+            if (!movedItem) return;
+
+            // Finde den alten Index basierend auf der ID
+            const oldIndex = machines.findIndex(m => m.id === movedItem.id);
+
+            // Entferne das Element vom alten Index
+            machines.splice(oldIndex, 1);
+            
+            // Füge es am neuen Index wieder ein
             machines.splice(evt.newIndex, 0, movedItem);
-            saveMachines();
+
+            saveMachines(); // Speichere die neue Reihenfolge
+            renderAllMachines(); // Rendere neu, um die visuelle Ordnung zu garantieren
         }
     });
 
@@ -362,6 +556,7 @@
             }
             updateMachineUI(machine);
         });
+        saveMachines(); // Speichert den aktuellen Füllstand etc.
     }, 1000);
 
     // --- INITIALISIERUNG ---
