@@ -18,28 +18,51 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const messaging = firebase.messaging();
 
+
+// ========================================================
+// HIER SIND DIE ÄNDERUNGEN FÜR DIE BENACHRICHTIGUNGEN
+// ========================================================
+
 messaging.onBackgroundMessage(payload => {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
-  const notificationTitle = payload.notification.title;
+
+  // ÄNDERUNG: Wir lesen Titel und Text jetzt aus 'payload.data'
+  // anstatt aus 'payload.notification'.
+  const notificationTitle = payload.data.title;
   const notificationOptions = {
-    body: payload.notification.body,
-    icon: './assets/icon.png' // Beispiel-Icon, Pfad anpassen falls nötig
+    body: payload.data.body,
+    icon: './assets/icon.png', // Pfad zu deinem App-Icon
+    // NEU: Wir fügen Daten hinzu, damit wir wissen, was beim Klick passieren soll.
+    data: {
+      url: self.location.origin + '/KistenTime/' // URL, die beim Klick geöffnet wird.
+    }
   };
+
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
+// NEU: Event-Listener, der auf Klicks auf die Benachrichtigung reagiert.
+self.addEventListener('notificationclick', event => {
+  // Benachrichtigung schließen
+  event.notification.close();
 
-// ---------------------------------------
-// TEIL 3: PWA CACHING LOGIK
-// ---------------------------------------
-const CACHE_NAME = 'kistentimer-cache-v3';
+  // Die in den 'data'-Optionen gespeicherte URL in einem neuen Fenster/Tab öffnen.
+  // Wenn die PWA schon offen ist, wird sie in den Vordergrund geholt.
+  event.waitUntil(clients.openWindow(event.notification.data.url));
+});
 
-// V V V HIER IST DIE KORREKTUR V V V
+
+// ========================================================
+// PWA CACHING LOGIK (mit erhöhter Versionsnummer)
+// ========================================================
+
+// WICHTIG: Version erhöht, um den Browser zu zwingen, den neuen Service Worker zu laden.
+const CACHE_NAME = 'kistentimer-cache-v4';
+
 const APP_SHELL_URLS = [
   './',
   './index.html'
 ];
-// ^ ^ ^ HIER IST DIE KORREKTUR ^ ^ ^
 
 self.addEventListener('install', event => {
   console.log('[SW] Install-Event. Caching App Shell...');
