@@ -2,7 +2,6 @@
 // Kombinierter Service Worker für Firebase & PWA Caching
 // ==========================================================
 
-// ... Dein Firebase Import- und Initialisierungs-Code bleibt unverändert ...
 importScripts('https://www.gstatic.com/firebasejs/9.2.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.2.0/firebase-messaging-compat.js');
 
@@ -18,46 +17,37 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const messaging = firebase.messaging();
 
-
 // ========================================================
-// HIER SIND DIE ÄNDERUNGEN FÜR DIE BENACHRICHTIGUNGEN
+// ANGEPASSTE LOGIK FÜR BENACHRICHTIGUNGEN
 // ========================================================
 
 messaging.onBackgroundMessage(payload => {
-  console.log('[firebase-messaging-sw.js] Received background message ', payload);
+  console.log('[firebase-messaging-sw.js] Received data-only message: ', payload);
 
-  // ÄNDERUNG: Wir lesen Titel und Text jetzt aus 'payload.data'
-  // anstatt aus 'payload.notification'.
   const notificationTitle = payload.data.title;
   const notificationOptions = {
     body: payload.data.body,
-    icon: './assets/icon.png', // Pfad zu deinem App-Icon
-    // NEU: Wir fügen Daten hinzu, damit wir wissen, was beim Klick passieren soll.
+    icon: payload.data.icon,
+    vibrate: [200, 100, 200],
     data: {
-      url: self.location.origin + '/KistenTime/' // URL, die beim Klick geöffnet wird.
+      url: payload.data.url
     }
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
-// NEU: Event-Listener, der auf Klicks auf die Benachrichtigung reagiert.
 self.addEventListener('notificationclick', event => {
-  // Benachrichtigung schließen
   event.notification.close();
-
-  // Die in den 'data'-Optionen gespeicherte URL in einem neuen Fenster/Tab öffnen.
-  // Wenn die PWA schon offen ist, wird sie in den Vordergrund geholt.
   event.waitUntil(clients.openWindow(event.notification.data.url));
 });
 
-
 // ========================================================
-// PWA CACHING LOGIK (mit erhöhter Versionsnummer)
+// PWA CACHING LOGIK
 // ========================================================
 
 // WICHTIG: Version erhöht, um den Browser zu zwingen, den neuen Service Worker zu laden.
-const CACHE_NAME = 'kistentimer-cache-v4';
+const CACHE_NAME = 'kistentimer-cache-v5';
 
 const APP_SHELL_URLS = [
   './',
