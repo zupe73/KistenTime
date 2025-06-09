@@ -493,7 +493,39 @@
     }
 
     // --- HELPER-FUNKTIONEN ---
-    function formatTime(sec) {
+    
+
+function getCurrentShift(now) {
+    const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+    for (const shift of shifts) {
+        const startTotalMinutes = shift.startHour * 60 + shift.startMinute;
+        const endTotalMinutes = shift.endHour * 60 + shift.endMinute;
+        if (shift.overnight) {
+            if (currentTotalMinutes >= startTotalMinutes || currentTotalMinutes < endTotalMinutes) return shift;
+        } else {
+            if (currentTotalMinutes >= startTotalMinutes && currentTotalMinutes < endTotalMinutes) return shift;
+        }
+    }
+    return { name: "Außerhalb Schicht" };
+}
+
+function getShiftEndTime(currentDate, shift) {
+    const endDate = new Date(currentDate);
+    if (!shift || shift.name === "Außerhalb Schicht") {
+        // Fallback, if no shift is active, just return the current time
+        return endDate;
+    }
+    endDate.setHours(shift.endHour, shift.endMinute, 0, 0);
+    if (shift.overnight && shift.startHour > shift.endHour && currentDate.getHours() >= shift.startHour) {
+        endDate.setDate(endDate.getDate() + 1);
+    } else if (endDate.getTime() <= currentDate.getTime()) {
+         endDate.setDate(endDate.getDate() + 1);
+    }
+    return endDate;
+}
+
+// ... your existing formatTime and formatTimeOfDay functions follow here ...
+  function formatTime(sec) {
         const m = Math.floor(sec / 60);
         const s = Math.floor(sec % 60);
         return `${m}m ${String(s).padStart(2, '0')}s`;
