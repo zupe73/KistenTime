@@ -32,7 +32,7 @@ messaging.onBackgroundMessage(payload => {
 // ---------------------------------------
 // TEIL 3: PWA CACHING LOGIK
 // ---------------------------------------
-const CACHE_NAME = 'kistentimer-cache-v2';
+const CACHE_NAME = 'kistentimer-cache-v3';
 
 // V V V HIER IST DIE KORREKTUR V V V
 const APP_SHELL_URLS = [
