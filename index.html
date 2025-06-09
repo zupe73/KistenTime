@@ -113,15 +113,72 @@
     import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-messaging.js";
 
     const firebaseConfig = {
-        // ... Ihre Firebase Konfiguration ...
+        apiKey: "AIzaSyCptp989CDyP2I6MrwXdM14WgFvzadEF5k",
+        authDomain: "kistentimer.firebaseapp.com",
+        projectId: "kistentimer",
+        storageBucket: "kistentimer.appspot.com",
+        messagingSenderId: "161547195519",
+        appId: "1:161547195519:web:3a0d8fa3c90960eaa7db4a"
     };
+
     const app = initializeApp(firebaseConfig);
     const messaging = getMessaging(app);
 
     // --- PUSH-BENACHRICHTIGUNGS-LOGIK ---
     let pushToken = localStorage.getItem('pushToken') || null;
-    window.initPushNotifications = function() { /* ... Ihre Funktion ... */ }
-    async function schedulePushNotificationsFor(machine) { /* ... Ihre Funktion ... */ }
+
+    window.initPushNotifications = function() {
+        Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+                console.log('Notification permission granted.');
+                navigator.serviceWorker.ready.then((registration) => {
+                    const vapidKey = 'BMehjID94jiDYaX4StW5gIoV9Ct9PrMqT3gZtoyl5mfOE4aiOyINP6n0D4RmHQvoJGi3Ll0gPPh0wYHomQkZmuU';
+                    getToken(messaging, { vapidKey: vapidKey, serviceWorkerRegistration: registration })
+                        .then((currentToken) => {
+                            if (currentToken) {
+                                console.log('Firebase Push Token:', currentToken);
+                                alert('Push-Benachrichtigungen erfolgreich aktiviert!');
+                                pushToken = currentToken;
+                                localStorage.setItem('pushToken', currentToken);
+                            } else {
+                                console.log('No registration token available.');
+                            }
+                        }).catch((err) => {
+                            console.error('Error retrieving token:', err);
+                        });
+                });
+            } else {
+                console.log('Unable to get permission to notify.');
+            }
+        });
+    }
+
+    async function schedulePushNotificationsFor(machine) {
+        if (!pushToken) {
+            console.warn("Kein Push-Token vorhanden. Bitte zuerst aktivieren.");
+            return;
+        }
+        const partsPerSecond = machine.cavities / machine.cycleTime;
+        const secondsUntilFull = (machine.boxCapacity - machine.currentFill) / partsPerSecond;
+        const functionUrl = 'https://schedulenotification-xxhao7ipkq-uc.a.run.app';
+        const data = {
+            token: pushToken,
+            machineName: machine.name,
+            secondsUntilFull: secondsUntilFull
+        };
+        console.log(`[Frontend] Sende Planungs-Auftrag für ${machine.name} an das Backend.`);
+        try {
+            const response = await fetch(functionUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            console.log('[Frontend] Antwort vom Backend:', result.message);
+        } catch (error) {
+            console.error("Fehler beim Aufrufen der scheduleNotification Funktion:", error);
+        }
+    }
 
     // --- KISTENTIMER APP-LOGIK ---
     if ('serviceWorker' in navigator) {
@@ -144,8 +201,30 @@
         localStorage.setItem('machines', JSON.stringify(machines));
     }
 
-    function getCurrentShift(now) { /* ... Ihre Funktion ... */ }
-    function getShiftEndTime(currentDate, shift) { /* ... Ihre Funktion ... */ }
+    function getCurrentShift(now) {
+        const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+        for (const shift of shifts) {
+            const startTotalMinutes = shift.startHour * 60 + shift.startMinute;
+            const endTotalMinutes = shift.endHour * 60 + shift.endMinute;
+            if (shift.overnight) {
+                if (currentTotalMinutes >= startTotalMinutes || currentTotalMinutes < endTotalMinutes) return shift;
+            } else {
+                if (currentTotalMinutes >= startTotalMinutes && currentTotalMinutes < endTotalMinutes) return shift;
+            }
+        }
+        return { name: "Außerhalb Schicht" };
+    }
+
+    function getShiftEndTime(currentDate, shift) {
+        const endDate = new Date(currentDate);
+        endDate.setHours(shift.endHour, shift.endMinute, 0, 0);
+        if (shift.overnight && shift.startHour > shift.endHour && currentDate.getHours() >= shift.startHour) {
+            endDate.setDate(endDate.getDate() + 1);
+        } else if (endDate.getTime() <= currentDate.getTime()) {
+             endDate.setDate(endDate.getDate() + 1);
+        }
+        return endDate;
+    }
 
     window.addMachine = function() {
         const name = document.getElementById('name').value.trim();
@@ -173,7 +252,12 @@
         schedulePushNotificationsFor(machine);
     }
 
-    function clearInputs() { /* ... Ihre Funktion ... */ }
+    function clearInputs() {
+        document.getElementById('name').value = '';
+        document.getElementById('cavities').value = '1';
+        document.getElementById('cycleTime').value = '10';
+        document.getElementById('boxCapacity').value = '100';
+    }
 
     window.togglePause = function(machineId) {
         const machine = machines.find(m => m.id === machineId);
@@ -240,12 +324,26 @@
 
     document.addEventListener('DOMContentLoaded', renderAllMachines);
 
-    function formatTime(sec) { /* ... Ihre Funktion ... */ }
-    function formatTimeOfDay(date) { /* ... Ihre Funktion ... */ }
-    function notifyBoxFull(machine) { /* ... Ihre Funktion ... */ }
+    function formatTime(sec) {
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return `${m}m ${String(s).padStart(2, '0')}s`;
+    }
+
+    function formatTimeOfDay(date) {
+        const h = String(date.getHours()).padStart(2, '0');
+        const m = String(date.getMinutes()).padStart(2, '0');
+        return `${h}:${m}`;
+    }
+
+    function notifyBoxFull(machine) {
+       console.log(`Event "Kiste voll" für ${machine.name} ausgelöst. Push-Benachrichtigung sollte vom Server kommen.`);
+    }
     
     const audio = new Audio('./assets/beep.mp3');
-    function playBeep() { audio.play().catch(e => console.error("Could not play sound:", e)); }
+    function playBeep() {
+        audio.play().catch(e => console.error("Could not play sound:", e));
+    }
 
     window.openEditModal = function(machineId) {
         const machine = machines.find(m => m.id === machineId);
@@ -286,7 +384,13 @@
         schedulePushNotificationsFor(machine);
     }
 
-    window.deleteMachine = function(machineId) { /* ... Ihre Funktion ... */ }
+    window.deleteMachine = function(machineId) {
+        if (confirm('Sind Sie sicher?')) {
+            machines = machines.filter(m => m.id !== machineId);
+            saveMachines();
+            document.getElementById('machine-' + machineId).remove();
+        }
+    }
 
     // --- PROGNOSE-FUNKTIONEN ---
     window.openForecastModal = function(machineId) {
@@ -340,7 +444,79 @@
     }
 
     // --- HAUPT-UPDATE-SCHLEIFE ---
-    setInterval(() => { /* ... Ihre Funktion ... */ }, 1000);
+    setInterval(() => {
+        const now = new Date();
+        const currentShift = getCurrentShift(now);
+
+        machines.forEach(machine => {
+            if (!machine.isFillingManually && !machine.isPaused) {
+                const elapsedMs = now.getTime() - machine.lastUpdate;
+                const elapsedSec = elapsedMs / 1000;
+                const fullCycles = Math.floor(elapsedSec / machine.cycleTime);
+
+                if (fullCycles > 0) {
+                    machine.currentFill += fullCycles * machine.cavities;
+                    machine.lastUpdate += fullCycles * machine.cycleTime * 1000;
+                }
+
+                if (machine.lastShiftName !== currentShift.name) {
+                    machine.boxesCompletedShift = 0;
+                    machine.lastShiftName = currentShift.name;
+                }
+
+                let wasBoxJustFilled = false;
+                while (machine.currentFill >= machine.boxCapacity) {
+                    machine.currentFill -= machine.boxCapacity;
+                    machine.boxesCompleted++;
+                    machine.boxesCompletedShift++;
+                    wasBoxJustFilled = true;
+                }
+
+                if (wasBoxJustFilled) {
+                    notifyBoxFull(machine);
+                    playBeep();
+                    if (machine.machineDiv) {
+                        machine.machineDiv.classList.add('box-full');
+                        setTimeout(() => machine.machineDiv.classList.remove('box-full'), 2000);
+                    }
+                    schedulePushNotificationsFor(machine);
+                }
+            } 
+            else {
+                machine.lastUpdate = now.getTime();
+            }
+
+            // --- UI-Aktualisierung (passiert immer) ---
+            const partsPerSecond = machine.cavities / machine.cycleTime;
+            const secondsLeftForCurrentBox = machine.isPaused ? Infinity : (machine.boxCapacity - machine.currentFill) / partsPerSecond;
+
+            if (machine.timeDiv) {
+                if (machine.isPaused) {
+                    machine.timeDiv.textContent = 'Pausiert';
+                } else {
+                    const fillTime = new Date(now.getTime() + secondsLeftForCurrentBox * 1000);
+                    machine.timeDiv.textContent = `Restzeit: ${formatTime(secondsLeftForCurrentBox)} | Voll: ${formatTimeOfDay(fillTime)} Uhr`;
+                }
+            }
+            
+            if (!machine.isFillingManually) {
+                machine.fillInput.value = Math.floor(machine.currentFill);
+            }
+
+            const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
+            machine.progressBar.style.width = `${Math.min(100, progressPercent)}%`;
+            machine.progressBar.className = 'progress-bar';
+            if (progressPercent < 70) machine.progressBar.classList.add('green');
+            else if (progressPercent < 90) machine.progressBar.classList.add('orange');
+            else machine.progressBar.classList.add('red');
+
+            const shiftEndTime = getShiftEndTime(now, currentShift);
+            const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
+            const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor((remainingShiftTimeSec * partsPerSecond) / machine.boxCapacity);
+            machine.shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
+        });
+        saveMachines();
+    }, 1000);
 
 </script>
 </body>
