@@ -452,7 +452,7 @@ function updateMachineUI(machine) {
             } else {
                 const fillTime = new Date(now.getTime() + secondsLeft * 1000);
                 if(timeRemainingEl) timeRemainingEl.textContent = formatTime(secondsLeft);
-                if(timeOfDayEl) timeOfDayEl.textContent = `🏁: ${formatTimeOfDay(fillTime)}`;
+                if(timeOfDayEl) timeOfDayEl.textContent = ` ${formatTimeOfDay(fillTime)}`;
             }
             
             const fillLevelEl = machineDiv.querySelector('.fill-level');
