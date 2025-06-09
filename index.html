@@ -670,7 +670,19 @@
 
     // --- INITIALISIERUNG ---
     document.addEventListener('DOMContentLoaded', () => {
-        const detailedBtn = document.getElementById('view-detailed-btn');
+       if ('serviceWorker' in navigator) {
+        // Wir warten, bis die Seite komplett geladen ist, um die Registrierung nicht zu blockieren.
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./firebase-messaging-sw.js')
+                .then(registration => {
+                    console.log('Service Worker erfolgreich registriert! Geltungsbereich:', registration.scope);
+                })
+                .catch(error => {
+                    console.error('Service Worker Registrierung fehlgeschlagen:', error);
+                });
+        });
+    }
+      const detailedBtn = document.getElementById('view-detailed-btn');
         const compactBtn = document.getElementById('view-compact-btn');
 
         detailedBtn.addEventListener('click', () => {
