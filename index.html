@@ -48,7 +48,7 @@
   .view-switcher button { padding: 8px 12px; border: 1px solid #ccc; background-color: #f8f9fa; color: #333; cursor: pointer; }
   .view-switcher button.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
   #overview-machine-list.compact-view { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  @media (max-width: 600px) { #overview-machine-list.compact-view { grid-template-columns: 1fr; } }
+  
   .machine-compact { display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #fff; border: 1px solid #ddd; padding: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; cursor: grab; }
   .machine-compact .machine-name { font-weight: bold; font-size: 0.9em; margin-bottom: 8px; }
   .progress-circle { width: 80px; height: 80px; border-radius: 50%; display: flex; justify-content: center; align-items: center; position: relative; background: conic-gradient( var(--progress-color, #4CAF50) calc(var(--progress-percent, 0) * 1%), #e9ecef 0 ); }
