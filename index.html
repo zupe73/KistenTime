@@ -53,7 +53,28 @@
   .machine-compact .machine-name { font-weight: bold; font-size: 0.9em; margin-bottom: 8px; }
   .progress-circle { width: 80px; height: 80px; border-radius: 50%; display: flex; justify-content: center; align-items: center; position: relative; background: conic-gradient( var(--progress-color, #4CAF50) calc(var(--progress-percent, 0) * 1%), #e9ecef 0 ); }
   .progress-circle::before { content: ''; position: absolute; width: 66px; height: 66px; background: #fff; border-radius: 50%; }
-  .progress-circle .time-remaining { position: relative; z-index: 1; font-size: 1em; font-weight: bold; color: #333; }
+  /* +++ DIESEN NEUEN BLOCK HINZUFÜGEN +++ */
+.progress-circle .time-display {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.2; /* Engerer Zeilenabstand */
+}
+
+.progress-circle .time-remaining {
+    font-size: 1.1em; /* Haupt-Zeit etwas größer */
+    font-weight: bold;
+    color: #333;
+}
+
+.progress-circle .time-of-day {
+    font-size: 0.8em; /* Zweite Zeile etwas kleiner */
+    font-weight: normal;
+    color: #555;
+}
   .machine-compact .fill-level { margin-top: 8px; font-size: 0.9em; font-weight: bold; color: #555; }
 </style>
 <link rel="manifest" href="./manifest.json" />
@@ -343,94 +364,111 @@
         container.appendChild(div);
     }
 
-    // NEU HINZUGEFÜGT: Diese Funktion hat gefehlt.
-    function renderCompactMachine(machine, container) {
-        let div = document.createElement('div');
-        div.id = `machine-o-${machine.id}`;
-        div.className = 'machine-compact';
-        div.dataset.id = machine.id;
+   function renderCompactMachine(machine, container) {
+    let div = document.createElement('div');
+    div.id = `machine-o-${machine.id}`;
+    div.className = 'machine-compact';
+    div.dataset.id = machine.id;
 
-        const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
-        const progressColor = progressPercent < 70 ? '#4CAF50' : (progressPercent < 90 ? '#FF9800' : '#F44336');
-        
-        div.innerHTML = `
-            <div class="machine-name">${machine.name}</div>
-            <div class="progress-circle" style="--progress-percent: ${progressPercent}; --progress-color: ${progressColor};">
-                <div class="time-remaining"></div>
+    const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
+    const progressColor = progressPercent < 70 ? '#4CAF50' : (progressPercent < 90 ? '#FF9800' : '#F44336');
+    
+    // HIER ist die geänderte HTML-Struktur für den Kreis
+    div.innerHTML = `
+        <div class="machine-name">${machine.name}</div>
+        <div class="progress-circle" style="--progress-percent: ${progressPercent}; --progress-color: ${progressColor};">
+            <div class="time-display">
+                <span class="time-remaining"></span>
+                <span class="time-of-day"></span>
             </div>
-            <div class="fill-level">${Math.floor(progressPercent)}%</div>`;
-        container.appendChild(div);
-    }
+        </div>
+        <div class="fill-level">${Math.floor(progressPercent)}%</div>
+    `;
+    container.appendChild(div);
+}
 
-    function updateMachineUI(machine) {
-        const now = new Date();
-        const partsPerSecond = machine.cavities / machine.cycleTime;
-        const secondsLeft = machine.isPaused ? Infinity : (machine.boxCapacity - machine.currentFill) / partsPerSecond;
-        const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
-        const currentShift = getCurrentShift(now);
+// ERSETZE DEINE AKTUELLE updateMachineUI FUNKTION MIT DIESER KORREKTEN VERSION
 
-        ['a', 'o'].forEach(prefix => {
-            const machineDiv = document.getElementById(`machine-${prefix}-${machine.id}`);
-            if (!machineDiv) return;
+function updateMachineUI(machine) {
+    const now = new Date();
+    const partsPerSecond = machine.cavities / machine.cycleTime;
+    const secondsLeft = machine.isPaused ? Infinity : (machine.boxCapacity - machine.currentFill) / partsPerSecond;
+    const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
+    const currentShift = getCurrentShift(now);
 
-            if (prefix === 'a' || (prefix === 'o' && viewMode === 'detailed')) {
-                machineDiv.classList.toggle('paused', !!machine.isPaused);
-                const timeDiv = machineDiv.querySelector('.time-info');
-                if (timeDiv) {
-                    if (machine.isPaused) {
-                        timeDiv.textContent = 'Pausiert';
-                    } else {
-                        const fillTime = new Date(now.getTime() + secondsLeft * 1000);
-                        timeDiv.textContent = `Restzeit: ${formatTime(secondsLeft)} | Voll: ${formatTimeOfDay(fillTime)} Uhr`;
-                    }
+    ['a', 'o'].forEach(prefix => {
+        const machineDiv = document.getElementById(`machine-${prefix}-${machine.id}`);
+        if (!machineDiv) return;
+
+        // Logik für Admin-Ansicht und detaillierte Übersicht
+        if (prefix === 'a' || (prefix === 'o' && viewMode === 'detailed')) {
+            machineDiv.classList.toggle('paused', !!machine.isPaused);
+            const timeDiv = machineDiv.querySelector('.time-info');
+            if (timeDiv) {
+                if (machine.isPaused) {
+                    timeDiv.textContent = 'Pausiert';
+                } else {
+                    const fillTime = new Date(now.getTime() + secondsLeft * 1000);
+                    timeDiv.textContent = `Restzeit: ${formatTime(secondsLeft)} | Voll: ${formatTimeOfDay(fillTime)} Uhr`;
                 }
+            }
+            const progressBar = machineDiv.querySelector('.progress-bar');
+            if (progressBar) {
+                progressBar.style.width = `${Math.min(100, progressPercent)}%`;
+                progressBar.className = 'progress-bar';
+                if (progressPercent < 70) progressBar.classList.add('green');
+                else if (progressPercent < 90) progressBar.classList.add('orange');
+                else progressBar.classList.add('red');
+            }
+            const shiftInfoDiv = machineDiv.querySelector('.shift-info');
+            if (shiftInfoDiv) {
+                const shiftEndTime = getShiftEndTime(now, currentShift);
+                const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
+                const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor((remainingShiftTimeSec * partsPerSecond) / machine.boxCapacity);
+                shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
+            }
+            if (prefix === 'a') {
                 const fillInput = machineDiv.querySelector('.fillInput');
                 if (fillInput && !machine.isFillingManually) {
                     fillInput.value = Math.floor(machine.currentFill);
                 }
-                const progressBar = machineDiv.querySelector('.progress-bar');
-                if (progressBar) {
-                    progressBar.style.width = `${Math.min(100, progressPercent)}%`;
-                    progressBar.className = 'progress-bar';
-                    if (progressPercent < 70) progressBar.classList.add('green');
-                    else if (progressPercent < 90) progressBar.classList.add('orange');
-                    else progressBar.classList.add('red');
+                const pauseButton = machineDiv.querySelector('.machine-actions button.pause, .machine-actions button.resume');
+                if(pauseButton){
+                    pauseButton.textContent = machine.isPaused ? 'Fortsetzen' : 'Anhalten';
+                    pauseButton.className = `machine-actions button ${machine.isPaused ? 'resume' : 'pause'}`;
                 }
-                const shiftInfoDiv = machineDiv.querySelector('.shift-info');
-                if (shiftInfoDiv) {
-                    const shiftEndTime = getShiftEndTime(now, currentShift);
-                    const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
-                    const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor((remainingShiftTimeSec * partsPerSecond) / machine.boxCapacity);
-                    shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
-                }
-                if (prefix === 'a') {
-                    const pauseButton = machineDiv.querySelector('.machine-actions button.pause, .machine-actions button.resume');
-                    if (pauseButton) {
-                        pauseButton.textContent = machine.isPaused ? 'Fortsetzen' : 'Anhalten';
-                        pauseButton.className = `machine-actions button ${machine.isPaused ? 'resume' : 'pause'}`;
-                    }
-                }
+            }
+        }
+
+        // Logik für kompakte Übersicht
+        if (prefix === 'o' && viewMode === 'compact') {
+            machineDiv.classList.toggle('paused', !!machine.isPaused);
+            const timeRemainingEl = machineDiv.querySelector('.time-remaining');
+            const timeOfDayEl = machineDiv.querySelector('.time-of-day');
+
+            if (machine.isPaused) {
+                if(timeRemainingEl) timeRemainingEl.textContent = '⏸️';
+                if(timeOfDayEl) timeOfDayEl.textContent = 'Pausiert';
+            } else {
+                const fillTime = new Date(now.getTime() + secondsLeft * 1000);
+                if(timeRemainingEl) timeRemainingEl.textContent = formatTime(secondsLeft);
+                if(timeOfDayEl) timeOfDayEl.textContent = `Voll: ${formatTimeOfDay(fillTime)}`;
+            }
+            
+            const fillLevelEl = machineDiv.querySelector('.fill-level');
+            if (fillLevelEl) {
+                fillLevelEl.textContent = `${Math.floor(progressPercent)}%`;
             }
 
-            if (prefix === 'o' && viewMode === 'compact') {
-                machineDiv.classList.toggle('paused', !!machine.isPaused);
-                const timeRemainingEl = machineDiv.querySelector('.time-remaining');
-                if (timeRemainingEl) {
-                    timeRemainingEl.textContent = machine.isPaused ? '⏸️' : formatTime(secondsLeft);
-                }
-                const fillLevelEl = machineDiv.querySelector('.fill-level');
-                if (fillLevelEl) {
-                    fillLevelEl.textContent = `${Math.floor(progressPercent)}%`;
-                }
-                const circleEl = machineDiv.querySelector('.progress-circle');
-                if (circleEl) {
-                    const color = progressPercent < 70 ? '#4CAF50' : (progressPercent < 90 ? '#FF9800' : '#F44336');
-                    circleEl.style.setProperty('--progress-percent', progressPercent);
-                    circleEl.style.setProperty('--progress-color', color);
-                }
+            const circleEl = machineDiv.querySelector('.progress-circle');
+            if (circleEl) {
+                const color = progressPercent < 70 ? '#4CAF50' : (progressPercent < 90 ? '#FF9800' : '#F44336');
+                circleEl.style.setProperty('--progress-percent', progressPercent);
+                circleEl.style.setProperty('--progress-color', color);
             }
-        });
-    }
+        }
+    });
+}
 
     // --- KERN-FUNKTIONEN ---
     window.addMachine = function() {
@@ -609,11 +647,29 @@
         return endDate;
     }
 
-    function formatTime(sec) {
-        const m = Math.floor(sec / 60);
-        const s = Math.floor(sec % 60);
-        return `${m}m ${String(s).padStart(2, '0')}s`;
+  // ERSETZE die alte formatTime Funktion hiermit:
+function formatTime(sec) {
+    if (sec === Infinity || isNaN(sec)) {
+        return '---';
     }
+
+    sec = Math.round(sec); // Runde auf ganze Sekunden
+
+    const hours = Math.floor(sec / 3600);
+    const minutes = Math.floor((sec % 3600) / 60);
+    const seconds = sec % 60;
+
+    if (hours > 0) {
+        // Wenn es Stunden gibt, zeige nur Stunden und Minuten an
+        return `${hours}h ${String(minutes).padStart(2, '0')}m`;
+    } else if (minutes > 0) {
+        // Ansonsten, wenn es Minuten gibt, zeige Minuten und Sekunden
+        return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+    } else {
+        // Ansonsten zeige nur Sekunden
+        return `${seconds}s`;
+    }
+}
     
     function formatTimeOfDay(date) {
         const h = String(date.getHours()).padStart(2, '0');
