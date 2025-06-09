@@ -33,16 +33,28 @@
   .modal { display: none; position: fixed; z-index: 2; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
   .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px; }
   .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
-  .machine.paused { opacity: 0.65; border-style: dashed; }
+  .machine.paused, .machine-compact.paused { opacity: 0.65; border-style: dashed; }
   .machine-actions button.pause { background-color: #ff9800; }
   .machine-actions button.resume { background-color: #4CAF50; }
   .machine-actions button.forecast { background-color: #9C27B0; }
-
   nav { background-color: #0056b3; padding: 10px; display: flex; justify-content: center; gap: 10px; position: sticky; top: 0; z-index: 1; }
   nav button { background-color: transparent; border: 1px solid #fff; color: #fff; font-size: 14px; padding: 8px 12px; }
   nav button.active { background-color: #fff; color: #0056b3; font-weight: bold; }
   .page { display: none; }
   .page.active { display: block; }
+  
+  /* NEUES CSS FÜR UMSCHALTER UND KOMPAKTANSICHT */
+  .view-switcher { margin-bottom: 20px; }
+  .view-switcher button { padding: 8px 12px; border: 1px solid #ccc; background-color: #f8f9fa; color: #333; cursor: pointer; }
+  .view-switcher button.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
+  #overview-machine-list.compact-view { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+  @media (max-width: 600px) { #overview-machine-list.compact-view { grid-template-columns: 1fr; } }
+  .machine-compact { display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; cursor: grab; }
+  .machine-compact .machine-name { font-weight: bold; font-size: 1.1em; margin-bottom: 10px; }
+  .progress-circle { width: 90px; height: 90px; border-radius: 50%; display: flex; justify-content: center; align-items: center; position: relative; background: conic-gradient( var(--progress-color, #4CAF50) calc(var(--progress-percent, 0) * 1%), #e9ecef 0 ); }
+  .progress-circle::before { content: ''; position: absolute; width: 75px; height: 75px; background: #fff; border-radius: 50%; }
+  .progress-circle .time-remaining { position: relative; z-index: 1; font-size: 1.1em; font-weight: bold; color: #333; }
+  .machine-compact .fill-level { margin-top: 10px; font-size: 1em; font-weight: bold; color: #555; }
 </style>
 <link rel="manifest" href="./manifest.json" />
 </head>
@@ -56,6 +68,10 @@
 <div id="overview-page" class="page active">
     <div class="content-wrapper">
         <h1>Maschinenübersicht</h1>
+        <div class="view-switcher">
+            <button id="view-detailed-btn" class="active">Detailliert</button>
+            <button id="view-compact-btn">Kompakt</button>
+        </div>
         <div id="overview-machine-list"></div>
     </div>
 </div>
@@ -63,21 +79,21 @@
 <div id="admin-page" class="page">
     <div class="content-wrapper">
         <div class="add-machine-container">
-          <h2>Maschine hinzufügen</h2>
-          <label>Name:<br /><input type="text" id="name" /></label>
-          <label>Typ:<br />
-            <select id="type">
-              <option value="E">E (Engel)</option>
-              <option value="KM">KM (KraussMaffei)</option>
-              <option value="A">A (Arburg)</option>
-            </select>
-          </label>
-          <label>Kavitätenanzahl:<br /><input type="number" id="cavities" min="1" value="1" /></label>
-          <label>Zykluszeit (Sekunden):<br /><input type="number" id="cycleTime" min="0.01" step="0.01" value="10" /></label>
-          <label>Kistenfüllmenge:<br /><input type="number" id="boxCapacity" min="1" value="100" /></label>
-          <br>
-          <button onclick="addMachine()">Maschine hinzufügen</button>
-          <button onclick="initPushNotifications()">Push-Benachrichtigungen aktivieren</button>
+            <h2>Maschine hinzufügen</h2>
+            <label>Name:<br /><input type="text" id="name" /></label>
+            <label>Typ:<br />
+                <select id="type">
+                    <option value="E">E (Engel)</option>
+                    <option value="KM">KM (KraussMaffei)</option>
+                    <option value="A">A (Arburg)</option>
+                </select>
+            </label>
+            <label>Kavitätenanzahl:<br /><input type="number" id="cavities" min="1" value="1" /></label>
+            <label>Zykluszeit (Sekunden):<br /><input type="number" id="cycleTime" min="0.01" step="0.01" value="10" /></label>
+            <label>Kistenfüllmenge:<br /><input type="number" id="boxCapacity" min="1" value="100" /></label>
+            <br>
+            <button onclick="addMachine()">Maschine hinzufügen</button>
+            <button onclick="initPushNotifications()">Push-Benachrichtigungen aktivieren</button>
         </div>
 
         <div class="admin-list-container">
@@ -94,11 +110,11 @@
         <input type="hidden" id="editMachineId" />
         <label>Name:<br /><input type="text" id="editName" /></label>
         <label>Typ:<br />
-          <select id="editType">
-            <option value="E">E (Engel)</option>
-            <option value="KM">KM (KraussMaffei)</option>
-            <option value="A">A (Arburg)</option>
-          </select>
+            <select id="editType">
+                <option value="E">E (Engel)</option>
+                <option value="KM">KM (KraussMaffei)</option>
+                <option value="A">A (Arburg)</option>
+            </select>
         </label>
         <label>Kavitätenanzahl:<br /><input type="number" id="editCavities" min="1" /></label>
         <label>Zykluszeit (Sekunden):<br /><input type="number" id="editCycleTime" min="0.01" step="0.01" /></label>
@@ -115,16 +131,16 @@
         <h2>Auftragsprognose</h2>
         <input type="hidden" id="forecastMachineId" />
         <label>Gesamtanzahl der Kisten im Auftrag:<br />
-          <input type="number" id="forecastTotalBoxes" min="1" value="10" />
+            <input type="number" id="forecastTotalBoxes" min="1" value="10" />
         </label>
         <label>Aktuelle Kistennummer davon:<br />
-          <input type="number" id="forecastCurrentBoxNumber" min="1" value="1" />
+            <input type="number" id="forecastCurrentBoxNumber" min="1" value="1" />
         </label>
         <label>Füllmenge dieser aktuellen Kiste:<br />
-          <input type="number" id="forecastCurrentFill" min="0" value="0" />
+            <input type="number" id="forecastCurrentFill" min="0" value="0" />
         </label>
         <label style="display: inline-flex; align-items: center; gap: 10px;">
-          <input type="checkbox" id="forecastRunsOnWeekend" checked /> Läuft am Wochenende
+            <input type="checkbox" id="forecastRunsOnWeekend" checked /> Läuft am Wochenende
         </label>
         <br>
         <button onclick="calculateForecast()">Prognose berechnen</button>
@@ -149,6 +165,7 @@
     const messaging = getMessaging(app);
 
     // --- GLOBALE VARIABLEN & KONSTANTEN ---
+    let viewMode = 'detailed'; // Kann 'detailed' oder 'compact' sein
     let machines = JSON.parse(localStorage.getItem('machines')) || [];
     let pushToken = localStorage.getItem('pushToken') || null;
     const shifts = [
@@ -287,59 +304,130 @@
     function renderAllMachines() {
         const overviewContainer = document.getElementById('overview-machine-list');
         const adminContainer = document.getElementById('admin-machine-list');
+
+        overviewContainer.classList.toggle('compact-view', viewMode === 'compact');
         
-        overviewContainer.innerHTML = '';
-        adminContainer.innerHTML = '';
+        adminContainer.innerHTML = ''; 
+        overviewContainer.innerHTML = ''; 
 
         machines.forEach(machine => {
             renderMachine(machine, adminContainer, false);
             if (!machine.isPaused) {
-                renderMachine(machine, overviewContainer, true);
+                if (viewMode === 'detailed') {
+                    renderDetailedMachine(machine, overviewContainer);
+                } else {
+                    renderCompactMachine(machine, overviewContainer);
+                }
             }
         });
     }
-    
+
+    // KORRIGIERT: Hier war der Syntaxfehler im `innerHTML` behoben.
+    function renderDetailedMachine(machine, container) {
+        let div = document.createElement('div');
+        div.id = `machine-o-${machine.id}`;
+        div.className = 'machine'; 
+        div.dataset.id = machine.id;
+
+        div.innerHTML = `
+            <div class="header">
+                <div class="icon ${machine.type}">${machine.type}</div>
+                <div>${machine.name}</div>
+            </div>
+            <label>Aktuelle Füllmenge:<br>
+                <input type="number" class="fillInput" value="${Math.floor(machine.currentFill)}" disabled />
+            </label>
+            <div class="progress-container"><div class="progress-bar"></div></div>
+            <div class="time-info"></div>
+            <div class="shift-info"></div>`;
+        container.appendChild(div);
+    }
+
+    // NEU HINZUGEFÜGT: Diese Funktion hat gefehlt.
+    function renderCompactMachine(machine, container) {
+        let div = document.createElement('div');
+        div.id = `machine-o-${machine.id}`;
+        div.className = 'machine-compact';
+        div.dataset.id = machine.id;
+
+        const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
+        const progressColor = progressPercent < 70 ? '#4CAF50' : (progressPercent < 90 ? '#FF9800' : '#F44336');
+        
+        div.innerHTML = `
+            <div class="machine-name">${machine.name}</div>
+            <div class="progress-circle" style="--progress-percent: ${progressPercent}; --progress-color: ${progressColor};">
+                <div class="time-remaining"></div>
+            </div>
+            <div class="fill-level">${Math.floor(progressPercent)}%</div>`;
+        container.appendChild(div);
+    }
+
     function updateMachineUI(machine) {
-        ['o', 'a'].forEach(prefix => {
+        const now = new Date();
+        const partsPerSecond = machine.cavities / machine.cycleTime;
+        const secondsLeft = machine.isPaused ? Infinity : (machine.boxCapacity - machine.currentFill) / partsPerSecond;
+        const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
+        const currentShift = getCurrentShift(now);
+
+        ['a', 'o'].forEach(prefix => {
             const machineDiv = document.getElementById(`machine-${prefix}-${machine.id}`);
             if (!machineDiv) return;
 
-            const now = new Date();
-            const currentShift = getCurrentShift(now);
-            const partsPerSecond = machine.cavities / machine.cycleTime;
-            const secondsLeftForCurrentBox = machine.isPaused ? Infinity : (machine.boxCapacity - machine.currentFill) / partsPerSecond;
-
-            const timeDiv = machineDiv.querySelector('.time-info');
-            if (timeDiv) {
-                if (machine.isPaused) {
-                    timeDiv.textContent = 'Pausiert';
-                } else {
-                    const fillTime = new Date(now.getTime() + secondsLeftForCurrentBox * 1000);
-                    timeDiv.textContent = `Restzeit: ${formatTime(secondsLeftForCurrentBox)} | Voll: ${formatTimeOfDay(fillTime)} Uhr`;
+            if (prefix === 'a' || (prefix === 'o' && viewMode === 'detailed')) {
+                machineDiv.classList.toggle('paused', !!machine.isPaused);
+                const timeDiv = machineDiv.querySelector('.time-info');
+                if (timeDiv) {
+                    if (machine.isPaused) {
+                        timeDiv.textContent = 'Pausiert';
+                    } else {
+                        const fillTime = new Date(now.getTime() + secondsLeft * 1000);
+                        timeDiv.textContent = `Restzeit: ${formatTime(secondsLeft)} | Voll: ${formatTimeOfDay(fillTime)} Uhr`;
+                    }
+                }
+                const fillInput = machineDiv.querySelector('.fillInput');
+                if (fillInput && !machine.isFillingManually) {
+                    fillInput.value = Math.floor(machine.currentFill);
+                }
+                const progressBar = machineDiv.querySelector('.progress-bar');
+                if (progressBar) {
+                    progressBar.style.width = `${Math.min(100, progressPercent)}%`;
+                    progressBar.className = 'progress-bar';
+                    if (progressPercent < 70) progressBar.classList.add('green');
+                    else if (progressPercent < 90) progressBar.classList.add('orange');
+                    else progressBar.classList.add('red');
+                }
+                const shiftInfoDiv = machineDiv.querySelector('.shift-info');
+                if (shiftInfoDiv) {
+                    const shiftEndTime = getShiftEndTime(now, currentShift);
+                    const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
+                    const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor((remainingShiftTimeSec * partsPerSecond) / machine.boxCapacity);
+                    shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
+                }
+                if (prefix === 'a') {
+                    const pauseButton = machineDiv.querySelector('.machine-actions button.pause, .machine-actions button.resume');
+                    if (pauseButton) {
+                        pauseButton.textContent = machine.isPaused ? 'Fortsetzen' : 'Anhalten';
+                        pauseButton.className = `machine-actions button ${machine.isPaused ? 'resume' : 'pause'}`;
+                    }
                 }
             }
-            
-            const fillInput = machineDiv.querySelector('.fillInput');
-            if (fillInput && !machine.isFillingManually) {
-                fillInput.value = Math.floor(machine.currentFill);
-            }
 
-            const progressBar = machineDiv.querySelector('.progress-bar');
-            if(progressBar) {
-                const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
-                progressBar.style.width = `${Math.min(100, progressPercent)}%`;
-                progressBar.className = 'progress-bar';
-                if (progressPercent < 70) progressBar.classList.add('green');
-                else if (progressPercent < 90) progressBar.classList.add('orange');
-                else progressBar.classList.add('red');
-            }
-            
-            const shiftInfoDiv = machineDiv.querySelector('.shift-info');
-            if(shiftInfoDiv) {
-                const shiftEndTime = getShiftEndTime(now, currentShift);
-                const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
-                const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor((remainingShiftTimeSec * partsPerSecond) / machine.boxCapacity);
-                shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
+            if (prefix === 'o' && viewMode === 'compact') {
+                machineDiv.classList.toggle('paused', !!machine.isPaused);
+                const timeRemainingEl = machineDiv.querySelector('.time-remaining');
+                if (timeRemainingEl) {
+                    timeRemainingEl.textContent = machine.isPaused ? '⏸️' : formatTime(secondsLeft);
+                }
+                const fillLevelEl = machineDiv.querySelector('.fill-level');
+                if (fillLevelEl) {
+                    fillLevelEl.textContent = `${Math.floor(progressPercent)}%`;
+                }
+                const circleEl = machineDiv.querySelector('.progress-circle');
+                if (circleEl) {
+                    const color = progressPercent < 70 ? '#4CAF50' : (progressPercent < 90 ? '#FF9800' : '#F44336');
+                    circleEl.style.setProperty('--progress-percent', progressPercent);
+                    circleEl.style.setProperty('--progress-color', color);
+                }
             }
         });
     }
@@ -382,7 +470,7 @@
         machine.isPaused = !machine.isPaused;
         if (!machine.isPaused) machine.lastUpdate = Date.now();
         saveMachines();
-        renderAllMachines(); // Wichtig: Komplette UI neu rendern
+        renderAllMachines();
     }
 
     window.openEditModal = function(machineId) {
@@ -493,39 +581,35 @@
     }
 
     // --- HELPER-FUNKTIONEN ---
-    
-
-function getCurrentShift(now) {
-    const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
-    for (const shift of shifts) {
-        const startTotalMinutes = shift.startHour * 60 + shift.startMinute;
-        const endTotalMinutes = shift.endHour * 60 + shift.endMinute;
-        if (shift.overnight) {
-            if (currentTotalMinutes >= startTotalMinutes || currentTotalMinutes < endTotalMinutes) return shift;
-        } else {
-            if (currentTotalMinutes >= startTotalMinutes && currentTotalMinutes < endTotalMinutes) return shift;
+    function getCurrentShift(now) {
+        const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+        for (const shift of shifts) {
+            const startTotalMinutes = shift.startHour * 60 + shift.startMinute;
+            const endTotalMinutes = shift.endHour * 60 + shift.endMinute;
+            if (shift.overnight) {
+                if (currentTotalMinutes >= startTotalMinutes || currentTotalMinutes < endTotalMinutes) return shift;
+            } else {
+                if (currentTotalMinutes >= startTotalMinutes && currentTotalMinutes < endTotalMinutes) return shift;
+            }
         }
+        return { name: "Außerhalb Schicht" };
     }
-    return { name: "Außerhalb Schicht" };
-}
 
-function getShiftEndTime(currentDate, shift) {
-    const endDate = new Date(currentDate);
-    if (!shift || shift.name === "Außerhalb Schicht") {
-        // Fallback, if no shift is active, just return the current time
+    function getShiftEndTime(currentDate, shift) {
+        const endDate = new Date(currentDate);
+        if (!shift || shift.name === "Außerhalb Schicht") {
+            return endDate;
+        }
+        endDate.setHours(shift.endHour, shift.endMinute, 0, 0);
+        if (shift.overnight && shift.startHour > shift.endHour && currentDate.getHours() >= shift.startHour) {
+            endDate.setDate(endDate.getDate() + 1);
+        } else if (endDate.getTime() <= currentDate.getTime()) {
+            endDate.setDate(endDate.getDate() + 1);
+        }
         return endDate;
     }
-    endDate.setHours(shift.endHour, shift.endMinute, 0, 0);
-    if (shift.overnight && shift.startHour > shift.endHour && currentDate.getHours() >= shift.startHour) {
-        endDate.setDate(endDate.getDate() + 1);
-    } else if (endDate.getTime() <= currentDate.getTime()) {
-         endDate.setDate(endDate.getDate() + 1);
-    }
-    return endDate;
-}
 
-// ... your existing formatTime and formatTimeOfDay functions follow here ...
-  function formatTime(sec) {
+    function formatTime(sec) {
         const m = Math.floor(sec / 60);
         const s = Math.floor(sec % 60);
         return `${m}m ${String(s).padStart(2, '0')}s`;
@@ -541,22 +625,15 @@ function getShiftEndTime(currentDate, shift) {
     new Sortable(document.getElementById('overview-machine-list'), {
         animation: 150,
         ghostClass: 'sortable-ghost',
+        delay: 200, // Warte 200ms bevor das Ziehen beginnt
+        delayOnTouchOnly: true, // Gilt nur für Touch-Geräte, nicht für die Maus
         onEnd: function (evt) {
-            // Finde die verschobene Maschine im `machines`-Array
             const movedItem = machines.find(m => m.id === parseInt(evt.item.dataset.id));
             if (!movedItem) return;
-
-            // Finde den alten Index basierend auf der ID
             const oldIndex = machines.findIndex(m => m.id === movedItem.id);
-
-            // Entferne das Element vom alten Index
             machines.splice(oldIndex, 1);
-            
-            // Füge es am neuen Index wieder ein
             machines.splice(evt.newIndex, 0, movedItem);
-
-            saveMachines(); // Speichere die neue Reihenfolge
-            renderAllMachines(); // Rendere neu, um die visuelle Ordnung zu garantieren
+            saveMachines();
         }
     });
 
@@ -588,15 +665,33 @@ function getShiftEndTime(currentDate, shift) {
             }
             updateMachineUI(machine);
         });
-        saveMachines(); // Speichert den aktuellen Füllstand etc.
+        saveMachines();
     }, 1000);
 
     // --- INITIALISIERUNG ---
     document.addEventListener('DOMContentLoaded', () => {
+        const detailedBtn = document.getElementById('view-detailed-btn');
+        const compactBtn = document.getElementById('view-compact-btn');
+
+        detailedBtn.addEventListener('click', () => {
+            if (viewMode === 'detailed') return;
+            viewMode = 'detailed';
+            detailedBtn.classList.add('active');
+            compactBtn.classList.remove('active');
+            renderAllMachines();
+        });
+
+        compactBtn.addEventListener('click', () => {
+            if (viewMode === 'compact') return;
+            viewMode = 'compact';
+            compactBtn.classList.add('active');
+            detailedBtn.classList.remove('active');
+            renderAllMachines();
+        });
+
         renderAllMachines();
         showPage('overview-page');
     });
-
 </script>
 </body>
 </html>
