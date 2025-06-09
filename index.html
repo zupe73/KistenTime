@@ -570,53 +570,75 @@ function updateMachineUI(machine) {
         document.getElementById('forecastModal').style.display = 'none';
     }
 
-    window.calculateForecast = function() {
-        const machineId = parseInt(document.getElementById('forecastMachineId').value);
-        const machine = machines.find(m => m.id === machineId);
-        if (!machine) return;
+  // ERSETZE die alte calculateForecast Funktion komplett hiermit:
 
-        const totalBoxes = parseInt(document.getElementById('forecastTotalBoxes').value) || 0;
-        const currentBoxNumber = parseInt(document.getElementById('forecastCurrentBoxNumber').value) || 1;
-        const currentFill = parseInt(document.getElementById('forecastCurrentFill').value) || 0;
-        const runsOnWeekend = document.getElementById('forecastRunsOnWeekend').checked;
+window.calculateForecast = function() {
+    const machineId = parseInt(document.getElementById('forecastMachineId').value);
+    const machine = machines.find(m => m.id === machineId);
+    if (!machine) return;
 
-        if (totalBoxes <= 0 || currentBoxNumber > totalBoxes) {
-            alert('Bitte gültige Auftragsdaten eingeben (Aktuelle Kiste darf nicht größer als Gesamt sein).');
-            return;
-        }
+    const totalBoxes = parseInt(document.getElementById('forecastTotalBoxes').value) || 0;
+    const currentBoxNumber = parseInt(document.getElementById('forecastCurrentBoxNumber').value) || 1;
+    const currentFill = parseInt(document.getElementById('forecastCurrentFill').value) || 0;
+    const runsOnWeekend = document.getElementById('forecastRunsOnWeekend').checked;
 
-        const partsPerSecond = machine.cavities / machine.cycleTime;
-        const remainingPartsInCurrentBox = Math.max(0, machine.boxCapacity - currentFill);
-        const timeForCurrentBox = remainingPartsInCurrentBox / partsPerSecond;
-        const remainingFullBoxes = totalBoxes - currentBoxNumber;
-        
-        let secondsToProduce = timeForCurrentBox;
-        if (remainingFullBoxes > 0) {
-            secondsToProduce += (remainingFullBoxes * machine.boxCapacity) / partsPerSecond;
-        }
-
-        let finalCompletionDate = new Date();
-        while (secondsToProduce > 0) {
-            const currentDay = finalCompletionDate.getDay();
-            const currentHour = finalCompletionDate.getHours();
-            let isPauseHour = false;
-            
-            if (!runsOnWeekend) {
-                if ((currentDay === 6 && currentHour >= 4) || (currentDay === 0) || (currentDay === 1 && currentHour < 7)) {
-                    isPauseHour = true;
-                }
-            }
-            
-            if (!isPauseHour) {
-                secondsToProduce -= 3600;
-            }
-            finalCompletionDate.setHours(finalCompletionDate.getHours() + 1);
-        }
-        
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-        const formattedDate = finalCompletionDate.toLocaleDateString('de-DE', options);
-        document.getElementById('forecastResult').innerHTML = `Der Auftrag ist voraussichtlich fertig am:<br><strong>${formattedDate} Uhr</strong>`;
+    if (totalBoxes <= 0 || currentBoxNumber > totalBoxes) {
+        alert('Bitte gültige Auftragsdaten eingeben (Aktuelle Kiste darf nicht größer als Gesamt sein).');
+        return;
     }
+
+    const partsPerSecond = machine.cavities / machine.cycleTime;
+    const remainingPartsInCurrentBox = Math.max(0, machine.boxCapacity - currentFill);
+    const timeForCurrentBox = remainingPartsInCurrentBox / partsPerSecond;
+    const remainingFullBoxes = totalBoxes - currentBoxNumber;
+    
+    let secondsToProduce = timeForCurrentBox;
+    if (remainingFullBoxes > 0) {
+        secondsToProduce += (remainingFullBoxes * machine.boxCapacity) / partsPerSecond;
+    }
+
+    // --- NEUE, VERBESSERTE BERECHNUNGSLOGIK ---
+    
+    let finalCompletionDate = new Date(); // Startzeitpunkt ist jetzt
+    let remainingSecondsToProduce = secondsToProduce;
+
+    while (remainingSecondsToProduce > 0) {
+        const currentDay = finalCompletionDate.getDay(); // 0=Sonntag, 6=Samstag
+        const currentHour = finalCompletionDate.getHours();
+        
+        let isPauseHour = false;
+        // Die Pausenlogik wird nur angewendet, wenn die Checkbox NICHT aktiviert ist
+        if (!runsOnWeekend) {
+            // Pause von Samstag 04:00 Uhr bis Montag 07:00 Uhr
+            if ((currentDay === 6 && currentHour >= 4) || (currentDay === 0) || (currentDay === 1 && currentHour < 7)) {
+                isPauseHour = true;
+            }
+        }
+
+        // Wenn es eine Pausenstunde ist, überspringen wir sie,
+        // indem wir die Zeit vorstellen, aber nichts produzieren.
+        if (isPauseHour) {
+            finalCompletionDate.setHours(finalCompletionDate.getHours() + 1);
+            continue; // Nächste Schleifen-Iteration
+        }
+
+        // Wenn es eine Produktionsstunde ist:
+        // Wir ziehen eine Stunde (3600s) von der Restzeit ab und stellen die Uhr eine Stunde vor.
+        remainingSecondsToProduce -= 3600;
+        finalCompletionDate.setHours(finalCompletionDate.getHours() + 1);
+    }
+    
+    // Korrektur für die letzte Stunde:
+    // Da wir immer in vollen Stunden gerechnet haben, haben wir am Ende zu viel Zeit addiert.
+    // Wir korrigieren die Endzeit um die "zu viel" abgezogene Zeit zurück.
+    const overshootSeconds = -remainingSecondsToProduce;
+    finalCompletionDate.setSeconds(finalCompletionDate.getSeconds() - overshootSeconds);
+
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    const formattedDate = finalCompletionDate.toLocaleDateString('de-DE', options);
+    document.getElementById('forecastResult').innerHTML = `Der Auftrag ist voraussichtlich fertig am:<br><strong>${formattedDate} Uhr</strong>`;
+}
+
 
     // --- HELPER-FUNKTIONEN ---
     function getCurrentShift(now) {
