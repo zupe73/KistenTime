@@ -669,41 +669,45 @@
     }, 1000);
 
     // --- INITIALISIERUNG ---
-    document.addEventListener('DOMContentLoaded', () => {
-       if ('serviceWorker' in navigator) {
-        // Wir warten, bis die Seite komplett geladen ist, um die Registrierung nicht zu blockieren.
+document.addEventListener('DOMContentLoaded', () => {
+    
+    // Service Worker Registrierung - NUR DIESE DATEI REGISTRIEREN
+    if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
+            // Stelle sicher, dass dieser Pfad korrekt ist!
             navigator.serviceWorker.register('./firebase-messaging-sw.js')
                 .then(registration => {
-                    console.log('Service Worker erfolgreich registriert! Geltungsbereich:', registration.scope);
+                    console.log('Kombinierter Service Worker erfolgreich registriert!', registration.scope);
                 })
                 .catch(error => {
-                    console.error('Service Worker Registrierung fehlgeschlagen:', error);
+                    console.error('Kombinierter Service Worker Registrierung fehlgeschlagen:', error);
                 });
         });
     }
-      const detailedBtn = document.getElementById('view-detailed-btn');
-        const compactBtn = document.getElementById('view-compact-btn');
 
-        detailedBtn.addEventListener('click', () => {
-            if (viewMode === 'detailed') return;
-            viewMode = 'detailed';
-            detailedBtn.classList.add('active');
-            compactBtn.classList.remove('active');
-            renderAllMachines();
-        });
+    // Dein bestehender Code für die Buttons etc.
+    const detailedBtn = document.getElementById('view-detailed-btn');
+    const compactBtn = document.getElementById('view-compact-btn');
 
-        compactBtn.addEventListener('click', () => {
-            if (viewMode === 'compact') return;
-            viewMode = 'compact';
-            compactBtn.classList.add('active');
-            detailedBtn.classList.remove('active');
-            renderAllMachines();
-        });
-
+    detailedBtn.addEventListener('click', () => {
+        if (viewMode === 'detailed') return;
+        viewMode = 'detailed';
+        detailedBtn.classList.add('active');
+        compactBtn.classList.remove('active');
         renderAllMachines();
-        showPage('overview-page');
     });
+
+    compactBtn.addEventListener('click', () => {
+        if (viewMode === 'compact') return;
+        viewMode = 'compact';
+        compactBtn.classList.add('active');
+        detailedBtn.classList.remove('active');
+        renderAllMachines();
+    });
+
+    renderAllMachines();
+    showPage('overview-page');
+});
 </script>
 </body>
 </html>
