@@ -231,7 +231,15 @@
     let machines = JSON.parse(localStorage.getItem('machines')) || [];
     // Stellt sicher, dass alte Daten mit der neuen Eigenschaft kompatibel sind
     machines.forEach(machine => {
-        if (machine.boxJustBecameFull === undefined) {
+       machine.isPaused = machine.isPaused || false;
+    machine.isFillingManually = machine.isFillingManually || false;
+    machine.lastUpdate = machine.lastUpdate || Date.now();
+    machine.boxesCompleted = machine.boxesCompleted || 0;
+    machine.boxesCompletedShift = machine.boxesCompletedShift || 0;
+    machine.boxJustBecameFull = machine.boxJustBecameFull || false;
+    machine.lastShiftName = machine.lastShiftName || 'Frühschicht'; 
+}); 
+      if (machine.boxJustBecameFull === undefined) {
             machine.boxJustBecameFull = false;
         }
     });
