@@ -399,57 +399,100 @@ async function schedulePushNotificationsFor(machine) {
 // ERSETZE DEINE AKTUELLE updateMachineUI FUNKTION MIT DIESER KORREKTEN VERSION
 
 function updateMachineUI(machine) {
-    const now = new Date();
-    const partsPerSecond = machine.cavities / machine.cycleTime;
-    const secondsLeft = machine.isPaused ? Infinity : (machine.boxCapacity - machine.currentFill) / partsPerSecond;
-    const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
-    const currentShift = getCurrentShift(now);
+    const now = new Date();
+    const partsPerSecond = machine.cavities / machine.cycleTime;
+    const secondsLeft = machine.isPaused ? Infinity : (machine.boxCapacity - machine.currentFill) / partsPerSecond;
+    const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
+    const currentShift = getCurrentShift(now);
 
-    ['a', 'o'].forEach(prefix => {
-        const machineDiv = document.getElementById(`machine-${prefix}-${machine.id}`);
-        if (!machineDiv) return;
+    ['a', 'o'].forEach(prefix => {
+        const machineDiv = document.getElementById(`machine-${prefix}-${machine.id}`);
+        if (!machineDiv) return;
 
-        // Logik für Admin-Ansicht und detaillierte Übersicht
-        if (prefix === 'a' || (prefix === 'o' && viewMode === 'detailed')) {
-            machineDiv.classList.toggle('paused', !!machine.isPaused);
-            const timeDiv = machineDiv.querySelector('.time-info');
-            if (timeDiv) {
-                if (machine.isPaused) {
-                    timeDiv.textContent = 'Pausiert';
-                } else {
-                    const fillTime = new Date(now.getTime() + secondsLeft * 1000);
-                    timeDiv.textContent = `Restzeit: ${formatTime(secondsLeft)} | Voll: ${formatTimeOfDay(fillTime)} Uhr`;
-                }
-            }
-            const progressBar = machineDiv.querySelector('.progress-bar');
-            if (progressBar) {
-                progressBar.style.width = `${Math.min(100, progressPercent)}%`;
-                progressBar.className = 'progress-bar';
-                if (progressPercent < 70) progressBar.classList.add('green');
-                else if (progressPercent < 90) progressBar.classList.add('orange');
-                else progressBar.classList.add('red');
-            }
-            const shiftInfoDiv = machineDiv.querySelector('.shift-info');
-            if (shiftInfoDiv) {
-                const shiftEndTime = getShiftEndTime(now, currentShift);
-                const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
-                 const totalPartsPossibleInShift = machine.currentFill + (remainingShiftTimeSec * partsPerSecond);
+        // Logik für Admin-Ansicht und detaillierte Übersicht
+        if (prefix === 'a' || (prefix === 'o' && viewMode === 'detailed')) {
+            machineDiv.classList.toggle('paused', !!machine.isPaused);
+            const timeDiv = machineDiv.querySelector('.time-info');
+            if (timeDiv) {
+                if (machine.isPaused) {
+                    timeDiv.textContent = 'Pausiert';
+                } else {
+                    const fillTime = new Date(now.getTime() + secondsLeft * 1000);
+                    timeDiv.textContent = `Restzeit: ${formatTime(secondsLeft)} | Voll: ${formatTimeOfDay(fillTime)} Uhr`;
+                }
+            }
+            const progressBar = machineDiv.querySelector('.progress-bar');
+            if (progressBar) {
+                progressBar.style.width = `${Math.min(100, progressPercent)}%`;
+                progressBar.className = 'progress-bar';
+                if (progressPercent < 70) progressBar.classList.add('green');
+                else if (progressPercent < 90) progressBar.classList.add('orange');
+                else progressBar.classList.add('red');
+            }
+            const shiftInfoDiv = machineDiv.querySelector('.shift-info');
+            if (shiftInfoDiv) {
+                const shiftEndTime = getShiftEndTime(now, currentShift);
+                const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
+                const totalPartsPossibleInShift = machine.currentFill + (remainingShiftTimeSec * partsPerSecond);
                 const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor(totalPartsPossibleInShift / machine.boxCapacity);
-
                 shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
             }
-            if (prefix === 'a') {
-                const fillInput = machineDiv.querySelector('.fillInput');
-                if (fillInput && !machine.isFillingManually) {
+
+            // --- KORREKTUR BEGINNT HIER ---
+
+            // Aktualisiere das Füllstand-Feld für BEIDE Ansichten (Admin und Detail-Übersicht)
+            const fillInput = machineDiv.querySelector('.fillInput');
+            if (fillInput) {
+                // In der Admin-Ansicht prüfen wir, ob der Benutzer gerade tippt.
+                // In der Detail-Ansicht ist das Feld 'disabled', also können wir immer aktualisieren.
+                if (prefix === 'a' && machine.isFillingManually) {
+                    // Nichts tun, der Benutzer hat die Kontrolle
+                } else {
                     fillInput.value = Math.floor(machine.currentFill);
                 }
-                const pauseButton = machineDiv.querySelector('.machine-actions button.pause, .machine-actions button.resume');
-                if(pauseButton){
-                    pauseButton.textContent = machine.isPaused ? 'Fortsetzen' : 'Anhalten';
-                    pauseButton.className = `machine-actions button ${machine.isPaused ? 'resume' : 'pause'}`;
-                }
             }
-        }
+
+            if (prefix === 'a') {
+                // Die Füllstand-Aktualisierung war vorher fälschlicherweise hier drin.
+                // Jetzt aktualisieren wir hier nur noch Elemente, die es wirklich nur in der Admin-Ansicht gibt.
+                const pauseButton = machineDiv.querySelector('.machine-actions button.pause, .machine-actions button.resume');
+                if(pauseButton){
+                    pauseButton.textContent = machine.isPaused ? 'Fortsetzen' : 'Anhalten';
+                    pauseButton.className = `machine-actions button ${machine.isPaused ? 'resume' : 'pause'}`;
+                }
+            }
+            // --- KORREKTUR ENDET HIER ---
+        }
+
+        // Logik für kompakte Übersicht (bleibt unverändert)
+        if (prefix === 'o' && viewMode === 'compact') {
+            machineDiv.classList.toggle('paused', !!machine.isPaused);
+            const timeRemainingEl = machineDiv.querySelector('.time-remaining');
+            const timeOfDayEl = machineDiv.querySelector('.time-of-day');
+
+            if (machine.isPaused) {
+                if(timeRemainingEl) timeRemainingEl.textContent = '⏸️';
+                if(timeOfDayEl) timeOfDayEl.textContent = 'Pausiert';
+            } else {
+                const fillTime = new Date(now.getTime() + secondsLeft * 1000);
+                if(timeRemainingEl) timeRemainingEl.textContent = formatTime(secondsLeft);
+                if(timeOfDayEl) timeOfDayEl.textContent = ` ${formatTimeOfDay(fillTime)}`;
+            }
+            
+            const fillLevelEl = machineDiv.querySelector('.fill-level');
+            if (fillLevelEl) {
+                fillLevelEl.textContent = `${Math.floor(progressPercent)}%`;
+            }
+
+            const circleEl = machineDiv.querySelector('.progress-circle');
+            if (circleEl) {
+                const color = progressPercent < 70 ? '#4CAF50' : (progressPercent < 90 ? '#FF9800' : '#F44336');
+                circleEl.style.setProperty('--progress-percent', progressPercent);
+                circleEl.style.setProperty('--progress-color', color);
+            }
+        }
+    });
+}
 
         // Logik für kompakte Übersicht
         if (prefix === 'o' && viewMode === 'compact') {
