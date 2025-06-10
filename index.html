@@ -54,7 +54,48 @@
   .progress-circle { width: 80px; height: 80px; border-radius: 50%; display: flex; justify-content: center; align-items: center; position: relative; background: conic-gradient( var(--progress-color, #4CAF50) calc(var(--progress-percent, 0) * 1%), #e9ecef 0 ); }
   .progress-circle::before { content: ''; position: absolute; width: 66px; height: 66px; background: #fff; border-radius: 50%; }
   /* +++ DIESEN NEUEN BLOCK HINZUFÜGEN +++ */
-.progress-circle .time-display {
+.machine, .machine-compact {
+    position: relative;
+}
+
+.notification-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(244, 67, 54, 0.9); /* Ein auffälliges, halb-transparentes Rot */
+    color: white;
+    z-index: 1; /* Stellt sicher, dass die Nachricht über allem anderen liegt */
+    border-radius: 8px; /* Passt sich der Kartenform an */
+    
+    /* Flexbox, um den Inhalt perfekt zu zentrieren */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    font-size: 1.4em;
+    font-weight: bold;
+    
+    /* Standardmäßig unsichtbar */
+    display: none;
+}
+
+.notification-overlay div {
+    margin-bottom: 15px;
+}
+
+.notification-overlay button {
+    background-color: #fff;
+    color: #dc3545; /* Rote Schrift, passend zum Hintergrund */
+    border: none;
+    padding: 8px 16px;
+    font-size: 0.8em;
+    font-weight: bold;
+    border-radius: 4px;
+}
+  .progress-circle .time-display {
     position: relative;
     z-index: 1;
     display: flex;
@@ -188,6 +229,11 @@
     // --- GLOBALE VARIABLEN & KONSTANTEN ---
     let viewMode = 'detailed'; // Kann 'detailed' oder 'compact' sein
     let machines = JSON.parse(localStorage.getItem('machines')) || [];
+  machines.forEach(machine => {
+    if (machine.boxJustBecameFull === undefined) {
+        machine.boxJustBecameFull = false;
+    }
+});
     let pushToken = localStorage.getItem('pushToken') || null;
     const shifts = [
         { name: "Frühschicht", startHour: 6, startMinute: 0, endHour: 13, endMinute: 50 },
@@ -371,6 +417,18 @@ async function schedulePushNotificationsFor(machine) {
             <div class="time-info"></div>
             <div class="shift-info"></div>`;
         container.appendChild(div);
+      div.innerHTML = `
+            <div class="header"> ... </div>
+            <label> ... </label>
+            <div class="progress-container"> ... </div>
+            <div class="time-info"></div>
+            <div class="shift-info"></div>
+            <div class="notification-overlay">
+                <div>Kiste voll!</div>
+                <button onclick="acknowledgeBoxFull(${machine.id})">Quittieren</button>
+            </div>`;
+    container.appendChild(div);
+}
     }
 
    function renderCompactMachine(machine, container) {
@@ -394,7 +452,21 @@ async function schedulePushNotificationsFor(machine) {
         <div class="fill-level">${Math.floor(progressPercent)}%</div>
     `;
     container.appendChild(div);
+     function renderCompactMachine(machine, container) {
+    // ...
+    div.innerHTML = `
+        <div class="machine-name">${machine.name}</div>
+        <div class="progress-circle"> ... </div>
+        <div class="fill-level">${Math.floor(progressPercent)}%</div>
+        <div class="notification-overlay">
+            <div>Kiste voll!</div>
+            <button onclick="acknowledgeBoxFull(${machine.id})">Quittieren</button>
+        </div>
+    `;
+    container.appendChild(div);
 }
+}
+  
 
 // ERSETZE DEINE AKTUELLE updateMachineUI FUNKTION MIT DIESER KORREKTEN VERSION
 
@@ -408,6 +480,12 @@ function updateMachineUI(machine) {
     ['a', 'o'].forEach(prefix => {
         const machineDiv = document.getElementById(`machine-${prefix}-${machine.id}`);
         if (!machineDiv) return;
+      const notificationOverlay = machineDiv.querySelector('.notification-overlay');
+        if (notificationOverlay) {
+            notificationOverlay.style.display = machine.boxJustBecameFull ? 'flex' : 'none';
+        }
+        // Fügt den roten "Alarm"-Rahmen hinzu oder entfernt ihn
+        machineDiv.classList.toggle('box-full', machine.boxJustBecameFull);
 
         // Logik für Admin-Ansicht und detaillierte Übersicht
         if (prefix === 'a' || (prefix === 'o' && viewMode === 'detailed')) {
@@ -542,6 +620,10 @@ function updateMachineUI(machine) {
             isFillingManually: false,
             lastShiftName: getCurrentShift(new Date()).name,
             isPaused: false
+          boxJustBecameFull: false
+          
+          
+            
         };
         machines.push(newMachine);
         saveMachines();
@@ -564,6 +646,16 @@ function updateMachineUI(machine) {
         saveMachines();
         renderAllMachines();
     }
+  window.acknowledgeBoxFull = function(machineId) {
+    const machine = machines.find(m => m.id === machineId);
+    if (machine) {
+        machine.boxJustBecameFull = false;
+        // Die UI wird bei der nächsten Aktualisierung durch setInterval automatisch angepasst.
+        // Um eine sofortige Reaktion zu erzielen, rufen wir updateMachineUI direkt auf.
+        updateMachineUI(machine); 
+        saveMachines(); // Status speichern
+    }
+}
 
     window.openEditModal = function(machineId) {
         const machine = machines.find(m => m.id === machineId);
@@ -786,6 +878,7 @@ function formatTime(sec) {
                     machine.boxesCompleted++;
                     machine.boxesCompletedShift++;
                     wasBoxJustFilled = true;
+                  machine.boxJustBecameFull = true;
                 }
                 if (wasBoxJustFilled) {
                     notifyBoxFull(machine);
