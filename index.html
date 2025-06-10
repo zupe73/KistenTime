@@ -10,9 +10,9 @@
   body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f4f4; color: #333; }
   .content-wrapper { padding: 20px; }
   h1, h2 { color: #0056b3; }
-  .machine { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease; cursor: grab; }
-  .machine:active { cursor: grabbing; }
-  .machine.sortable-ghost { opacity: 0.4; background: #cce5ff; }
+  .machine, .machine-compact { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease; cursor: grab; }
+  .machine:active, .machine-compact:active { cursor: grabbing; }
+  .sortable-ghost { opacity: 0.4; background: #cce5ff; }
   .header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
   .icon { font-weight: bold; font-size: 20px; width: 30px; height: 30px; border-radius: 50%; color: white; text-align: center; line-height: 30px; display: flex; align-items: center; justify-content: center; }
   .E { background: #4CAF50; } .KM { background: #2196F3; } .A { background: #F44336; }
@@ -46,7 +46,7 @@
   .view-switcher button.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
   #overview-machine-list.compact-view { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
   #overview-machine-list.detailed-view { display: block; }
-  .machine-compact { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px; }
+  .machine-compact { flex-direction: column; align-items: center; justify-content: center; text-align: center; }
   .machine-compact .machine-name { font-weight: bold; font-size: 0.9em; margin-bottom: 8px; }
   .progress-circle { width: 80px; height: 80px; border-radius: 50%; display: flex; justify-content: center; align-items: center; position: relative; background: conic-gradient( var(--progress-color, #4CAF50) calc(var(--progress-percent, 0) * 1%), #e9ecef 0 ); transition: background 0.1s linear; }
   .progress-circle::before { content: ''; position: absolute; width: 66px; height: 66px; background: #fff; border-radius: 50%; }
@@ -64,16 +64,16 @@
 <body>
 
 <nav>
-    <button id="nav-overview" onclick="showPage('overview-page')">Übersicht</button>
-    <button id="nav-admin" onclick="showPage('admin-page')">Verwaltung</button>
+    <button onclick="showPage('overview-page')">Übersicht</button>
+    <button onclick="showPage('admin-page')">Verwaltung</button>
 </nav>
 
-<div id="overview-page" class="page active">
+<div id="overview-page" class="page">
     <div class="content-wrapper">
         <h1>Maschinenübersicht</h1>
         <h3 id="total-shift-forecast"></h3>
         <div class="view-switcher">
-            <button id="view-detailed-btn" class="active">Detailliert</button>
+            <button id="view-detailed-btn">Detailliert</button>
             <button id="view-compact-btn">Kompakt</button>
         </div>
         <div id="overview-machine-list"></div>
@@ -132,14 +132,6 @@
     <div class="modal-content">
         <span class="close-button" onclick="closeForecastModal()">&times;</span>
         <h2>Auftragsprognose</h2>
-        <input type="hidden" id="forecastMachineId" />
-        <label>Gesamtanzahl der Kisten im Auftrag:<br /><input type="number" id="forecastTotalBoxes" min="1" value="10" /></label>
-        <label>Aktuelle Kistennummer davon:<br /><input type="number" id="forecastCurrentBoxNumber" min="1" value="1" /></label>
-        <label>Füllmenge dieser aktuellen Kiste:<br /><input type="number" id="forecastCurrentFill" min="0" value="0" /></label>
-        <label style="display: inline-flex; align-items: center; gap: 10px;">
-            <input type="checkbox" id="forecastRunsOnWeekend" checked /> Läuft am Wochenende
-        </label>
-        <br>
         <button onclick="calculateForecast()">Prognose berechnen</button>
         <div id="forecastResult" style="margin-top: 20px; font-size: 1.1em; font-weight: bold;"></div>
     </div>
@@ -160,7 +152,7 @@
     const shifts = [{ name: "Frühschicht", startHour: 6, startMinute: 0, endHour: 13, endMinute: 50 }, { name: "Spätschicht", startHour: 14, startMinute: 0, endHour: 22, endMinute: 0 }, { name: "Nachtschicht", startHour: 22, startMinute: 0, endHour: 5, endMinute: 50, overnight: true }];
     const audio = new Audio('./assets/beep.mp3');
 
-    // --- GLOBALE FUNKTIONEN ZUGÄNGLICH MACHEN ---
+    // --- GLOBALE FUNKTIONEN FÜR onclick HANDLER ---
     window.showPage = showPage;
     window.acknowledgeBox = acknowledgeBox;
     window.addMachine = addMachine;
@@ -177,7 +169,7 @@
     // --- FUNKTIONSDEFINITIONEN ---
     function showPage(pageIdToShow) {
         document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.id === pageIdToShow));
-        document.querySelectorAll('nav button').forEach(button => button.classList.toggle('active', button.id === `nav-${pageIdToShow.split('-')[0]}`));
+        document.querySelectorAll('nav button').forEach(button => button.classList.toggle('active', `nav-${button.textContent.toLowerCase()}` === `nav-${pageIdToShow.split('-')[0]}`));
     }
     function acknowledgeBox(machineId) {
         const machine = machines.find(m => m.id === machineId);
@@ -207,12 +199,13 @@
     }
 
     async function schedulePushNotificationsFor(machine) {
-        if (!pushToken) return;
+        if (!pushToken) { console.warn("Kein Push-Token vorhanden."); return; }
         const partsPerSecond = machine.cavities / machine.cycleTime;
         const secondsUntilFull = (machine.boxCapacity - machine.currentFill) / partsPerSecond;
         const notificationBufferSeconds = 60;
         let scheduledDelaySeconds = secondsUntilFull - notificationBufferSeconds;
         if (scheduledDelaySeconds < 1) scheduledDelaySeconds = 1;
+
         const functionUrl = 'https://schedulenotification-xxhao7ipkq-uc.a.run.app';
         const data = { token: pushToken, machineName: machine.name, secondsUntilFull: scheduledDelaySeconds };
         console.log(`[Frontend] Planungs-Auftrag für ${machine.name}. Ausführung in ca. ${Math.round(scheduledDelaySeconds / 60)} Min.`);
@@ -244,6 +237,7 @@
                 <button class="forecast" onclick="openForecastModal(<span class="math-inline">\{machine\.id\}\)"\>Prognose</button\>
 <button class\="delete" onclick\="deleteMachine\(</span>{machine.id})">Löschen</button>
             </div>`;
+            
         div.innerHTML = `
             <div class="acknowledgement-notice">
                 <span>Kiste ist voll!</span>
@@ -266,13 +260,12 @@
             fillInput.disabled = true;
         } else {
             fillInput.disabled = false;
-            // Event Listener für manuelle Eingabe in der Admin-Ansicht
             fillInput.addEventListener('change', (e) => {
                 const machineToUpdate = machines.find(m => m.id == div.dataset.id);
                 if(machineToUpdate) {
-                    machineToUpdate.isFillingManually = false;
                     machineToUpdate.currentFill = Math.min(machineToUpdate.boxCapacity, Math.max(0, parseInt(e.target.value) || 0));
                     machineToUpdate.lastUpdate = Date.now();
+                    machineToUpdate.isFillingManually = false;
                     saveMachines();
                     updateMachineUI(machineToUpdate);
                 }
@@ -281,7 +274,7 @@
                 const machineToUpdate = machines.find(m => m.id == div.dataset.id);
                 if (machineToUpdate) machineToUpdate.isFillingManually = true;
             });
-             fillInput.addEventListener('blur', () => {
+            fillInput.addEventListener('blur', () => {
                 const machineToUpdate = machines.find(m => m.id == div.dataset.id);
                 if (machineToUpdate) machineToUpdate.isFillingManually = false;
             });
@@ -291,9 +284,8 @@
     function renderCompactMachine(machine, container) {
         let div = document.createElement('div');
         div.id = `machine-o-${machine.id}`;
-        div.className = 'machine-compact machine'; // Hinzufügen der .machine Klasse für Kompatibilität
+        div.className = 'machine-compact machine';
         div.dataset.id = machine.id;
-        
         div.innerHTML = `
             <div class="machine-name"><span class="math-inline">\{machine\.name\}</div\>
 <div class\="progress\-circle"\>
@@ -340,7 +332,7 @@
         if (partsPerSecond > 0 && !machine.isPaused) {
             const totalTimeForBox = (machine.boxCapacity / machine.cavities) * machine.cycleTime;
             const timeElapsedForCurrentBox = totalTimeForBox - secondsLeft;
-            progressPercent = Math.min(100, (timeElapsedForCurrentBox / totalTimeForBox) * 100);
+            progressPercent = Math.max(0, Math.min(100, (timeElapsedForCurrentBox / totalTimeForBox) * 100));
         } else {
             progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
         }
@@ -351,8 +343,9 @@
 
             machineDiv.querySelector('.acknowledgement-notice').style.display = machine.boxJustFinished ? 'flex' : 'none';
             
-            if (machineDiv.classList.contains('machine-compact')) {
-                // --- Update für Kompaktansicht ---
+            const isCompact = machineDiv.classList.contains('machine-compact');
+
+            if (isCompact) {
                 const circleEl = machineDiv.querySelector('.progress-circle');
                 const timeRemainingEl = machineDiv.querySelector('.time-remaining');
                 const timeOfDayEl = machineDiv.querySelector('.time-of-day');
@@ -374,7 +367,6 @@
                     circleEl.style.setProperty('--progress-color', color);
                 }
             } else { 
-                // --- Update für Detail- & Admin-Ansicht ---
                 const timeDiv = machineDiv.querySelector('.time-info');
                 if (timeDiv) {
                     if (machine.isPaused) timeDiv.textContent = 'Pausiert';
@@ -392,14 +384,12 @@
                     else progressBar.classList.add('red');
                 }
                 const fillInput = machineDiv.querySelector('.fillInput');
-                // Der "visuelle Füllstand" für flüssige Anzeige wird nur hier berechnet
                 const visualFillLevel = machine.isPaused ? machine.currentFill : machine.currentFill + ((now.getTime() - machine.lastUpdate) / 1000 * partsPerSecond);
                 if (fillInput && !machine.isFillingManually) {
                     fillInput.value = Math.floor(visualFillLevel);
                 }
             }
             
-            // --- Update für Schicht-Info (gilt für beide Ansichten, falls .shift-info vorhanden) ---
             const shiftInfoDiv = machineDiv.querySelector('.shift-info');
             if (shiftInfoDiv) {
                 const currentShift = getCurrentShift(now);
@@ -431,7 +421,7 @@
             boxCapacity: parseInt(document.getElementById('boxCapacity').value) || 100,
             currentFill: 0, lastUpdate: Date.now(), boxesCompleted: 0, boxesCompletedShift: 0,
             isFillingManually: false, lastShiftName: getCurrentShift(new Date()).name, isPaused: false,
-            boxJustFinished: false // NEUE EIGENSCHAFT
+            boxJustFinished: false
         };
         machines.push(newMachine);
         saveMachines();
@@ -481,7 +471,7 @@
         }
     }
     function deleteMachine(machineId) {
-        if (confirm('Sind Sie sicher, dass Sie diese Maschine löschen möchten?')) {
+        if (confirm('Sind Sie sicher?')) {
             machines = machines.filter(m => m.id !== machineId);
             saveMachines();
             renderAllMachines();
@@ -489,6 +479,10 @@
     }
     function openForecastModal(machineId) {
         document.getElementById('forecastMachineId').value = machineId;
+        document.getElementById('forecastTotalBoxes').value = '10';
+        document.getElementById('forecastCurrentBoxNumber').value = '1';
+        document.getElementById('forecastCurrentFill').value = '0';
+        document.getElementById('forecastRunsOnWeekend').checked = true;
         document.getElementById('forecastResult').innerHTML = '';
         document.getElementById('forecastModal').style.display = 'block';
     }
@@ -533,7 +527,7 @@
 
     // --- HELPER-FUNKTIONEN ---
     function formatTime(sec) {
-        if (sec === Infinity || isNaN(sec)) { return '---'; }
+        if (sec === Infinity || isNaN(sec) || sec < 0) { return '---'; }
         sec = Math.round(sec);
         const hours = Math.floor(sec / 3600);
         const minutes = Math.floor((sec % 3600) / 60);
@@ -652,16 +646,24 @@
         
         document.getElementById('view-detailed-btn').addEventListener('click', () => {
             viewMode = 'detailed';
+            const detailedBtn = document.getElementById('view-detailed-btn');
+            const compactBtn = document.getElementById('view-compact-btn');
+            detailedBtn.classList.add('active');
+            compactBtn.classList.remove('active');
             renderAllMachines();
         });
         document.getElementById('view-compact-btn').addEventListener('click', () => {
             viewMode = 'compact';
+            const detailedBtn = document.getElementById('view-detailed-btn');
+            const compactBtn = document.getElementById('view-compact-btn');
+            detailedBtn.classList.remove('active');
+            compactBtn.classList.add('active');
             renderAllMachines();
         });
 
         // Initialer Start
-        renderAllMachines();
         showPage('overview-page');
+        renderAllMachines();
     });
 </script>
 </body>
