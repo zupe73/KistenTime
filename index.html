@@ -3,57 +3,62 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>KistenTimer v4 - Final</title>
+<title>KistenTimer v5 - Korrigierte Version</title>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <style>
-  :root { --primary-color: #007bff; --primary-hover: #0056b3; }
-  body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f4f4; color: #333; }
-  .content-wrapper { padding: 20px; }
-  h1, h2 { color: #0056b3; }
-  .machine, .machine-compact { position: relative; background-color: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease; cursor: grab; }
-  .machine:active, .machine-compact:active { cursor: grabbing; }
-  .machine.sortable-ghost, .machine-compact.sortable-ghost { opacity: 0.4; background: #cce5ff; }
-  .machine.box-full, .machine-compact.box-full { border: 2px solid #F44336; box-shadow: 0 0 15px rgba(244, 67, 54, 0.7); }
-  .header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-  .icon { font-weight: bold; font-size: 20px; width: 30px; height: 30px; border-radius: 50%; color: white; text-align: center; line-height: 30px; display: flex; align-items: center; justify-content: center; }
-  .E { background: #4CAF50; } .KM { background: #2196F3; } .A { background: #F44336; }
-  input[type="text"], input[type="number"], select { width: calc(100% - 20px); padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; }
-  input[type="number"] { width: 80px; }
-  label { display: block; margin-bottom: 6px; font-weight: bold; }
-  button { background-color: var(--primary-color); color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-right: 5px; margin-top: 10px; }
-  button:hover { background-color: var(--primary-hover); }
-  .machine-actions button { background-color: #6c757d; }
-  .machine-actions button.delete { background-color: #dc3545; }
-  .machine-actions button.edit { background-color: #ffc107; color: #333; }
-  .add-machine-container, .admin-list-container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 20px; }
-  .time-info, .shift-info { margin-top: 8px; font-size: 0.9em; }
-  .progress-container { width: 100%; height: 15px; background: #eee; border-radius: 8px; margin-top: 6px; overflow: hidden; }
-  .progress-bar { height: 100%; width: 0%; transition: width 0.3s ease; background: #4CAF50; }
-  .progress-bar.green { background: #4CAF50; } .progress-bar.orange { background: #FF9800; } .progress-bar.red { background: #F44336; }
-  .modal { display: none; position: fixed; z-index: 3; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
-  .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px; }
-  .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
-  .machine.paused, .machine-compact.paused { opacity: 0.65; border-style: dashed; }
-  .machine-actions button.pause { background-color: #ff9800; }
-  .machine-actions button.resume { background-color: #4CAF50; }
-  .machine-actions button.forecast { background-color: #9C27B0; }
-  nav { background-color: #0056b3; padding: 10px; display: flex; justify-content: center; gap: 10px; position: sticky; top: 0; z-index: 2; }
-  nav button { background-color: transparent; border: 1px solid #fff; color: #fff; font-size: 14px; padding: 8px 12px; }
-  nav button.active { background-color: #fff; color: #0056b3; font-weight: bold; }
-  .page { display: none; }
-  .page.active { display: block; }
-  .view-switcher { margin-bottom: 20px; }
-  .view-switcher button { padding: 8px 12px; border: 1px solid #ccc; background-color: #f8f9fa; color: #333; cursor: pointer; }
-  .view-switcher button.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
-  #overview-machine-list.compact-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-  .machine-compact { padding: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-  .machine-compact .machine-name { font-weight: bold; font-size: 0.9em; margin-bottom: 8px; }
-  .progress-circle { width: 80px; height: 80px; border-radius: 50%; display: flex; justify-content: center; align-items: center; position: relative; background: conic-gradient( var(--progress-color, #4CAF50) calc(var(--progress-percent, 0) * 1%), #e9ecef 0 ); }
-  .progress-circle::before { content: ''; position: absolute; width: 66px; height: 66px; background: #fff; border-radius: 50%; }
+  :root { --primary-color: #007bff; --primary-hover: #0056b3; }
+  body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f4f4; color: #333; }
+  .content-wrapper { padding: 20px; }
+  h1, h2 { color: #0056b3; }
+  .machine { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease; cursor: grab; }
+  .machine:active { cursor: grabbing; }
+  .machine.sortable-ghost { opacity: 0.4; background: #cce5ff; }
+  .machine.box-full, .machine-compact.box-full { border: 2px solid #F44336; box-shadow: 0 0 15px rgba(244, 67, 54, 0.7); }
+  .header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .icon { font-weight: bold; font-size: 20px; width: 30px; height: 30px; border-radius: 50%; color: white; text-align: center; line-height: 30px; display: flex; align-items: center; justify-content: center; }
+  .E { background: #4CAF50; } .KM { background: #2196F3; } .A { background: #F44336; }
+  input[type="text"], input[type="number"], select { width: calc(100% - 20px); padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; }
+  input[type="number"] { width: 80px; }
+  label { display: block; margin-bottom: 6px; font-weight: bold; }
+  button { background-color: var(--primary-color); color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-right: 5px; margin-top: 10px; }
+  button:hover { background-color: var(--primary-hover); }
+  .machine-actions button { background-color: #6c757d; }
+  .machine-actions button.delete { background-color: #dc3545; }
+  .machine-actions button.edit { background-color: #ffc107; color: #333; }
+  .add-machine-container, .admin-list-container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 20px; }
+  .time-info, .shift-info { margin-top: 8px; font-size: 0.9em; }
+  .progress-container { width: 100%; height: 15px; background: #eee; border-radius: 8px; margin-top: 6px; overflow: hidden; }
+  .progress-bar { height: 100%; width: 0%; transition: width 0.3s ease; background: #4CAF50; }
+  .progress-bar.green { background: #4CAF50; } .progress-bar.orange { background: #FF9800; } .progress-bar.red { background: #F44336; }
+  .modal { display: none; position: fixed; z-index: 3; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+  .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px; }
+  .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+  .machine.paused, .machine-compact.paused { opacity: 0.65; border-style: dashed; }
+  .machine-actions button.pause { background-color: #ff9800; }
+  .machine-actions button.resume { background-color: #4CAF50; }
+  .machine-actions button.forecast { background-color: #9C27B0; }
+  nav { background-color: #0056b3; padding: 10px; display: flex; justify-content: center; gap: 10px; position: sticky; top: 0; z-index: 2; }
+  nav button { background-color: transparent; border: 1px solid #fff; color: #fff; font-size: 14px; padding: 8px 12px; }
+  nav button.active { background-color: #fff; color: #0056b3; font-weight: bold; }
+  .page { display: none; }
+  .page.active { display: block; }
+  
+  .view-switcher { margin-bottom: 20px; }
+  .view-switcher button { padding: 8px 12px; border: 1px solid #ccc; background-color: #f8f9fa; color: #333; cursor: pointer; }
+  .view-switcher button.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
+  #overview-machine-list.compact-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  
+  .machine-compact { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .machine-compact .machine-name { font-weight: bold; font-size: 0.9em; margin-bottom: 8px; }
+  .progress-circle { width: 80px; height: 80px; border-radius: 50%; display: flex; justify-content: center; align-items: center; position: relative; background: conic-gradient( var(--progress-color, #4CAF50) calc(var(--progress-percent, 0) * 1%), #e9ecef 0 ); }
+  .progress-circle::before { content: ''; position: absolute; width: 66px; height: 66px; background: #fff; border-radius: 50%; }
   .progress-circle .time-display { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
   .progress-circle .time-remaining { font-size: 0.95em; font-weight: bold; color: #333; }
   .progress-circle .time-of-day { font-size: 0.75em; font-weight: normal; color: #555; }
-  .machine-compact .fill-level { margin-top: 8px; font-size: 0.9em; font-weight: bold; color: #555; }
+  .machine-compact .fill-level { margin-top: 8px; font-size: 0.9em; font-weight: bold; color: #555; }
+
+  /* --- CSS FÜR "KISTE VOLL"-NACHRICHT --- */
+  .machine, .machine-compact { position: relative; }
   .notification-overlay { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(244, 67, 54, 0.9); color: white; z-index: 1; border-radius: 8px; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 1.4em; font-weight: bold; }
   .notification-overlay div { margin-bottom: 15px; }
   .notification-overlay button { background-color: #fff; color: #dc3545; border: none; padding: 8px 16px; font-size: 0.8em; font-weight: bold; border-radius: 4px; }
@@ -97,7 +102,6 @@
             <button onclick="addMachine()">Maschine hinzufügen</button>
             <button onclick="initPushNotifications()">Push-Benachrichtigungen aktivieren</button>
         </div>
-
         <div class="admin-list-container">
             <h2>Maschinen verwalten</h2>
             <div id="admin-machine-list"></div>
@@ -132,15 +136,9 @@
         <span class="close-button" onclick="closeForecastModal()">&times;</span>
         <h2>Auftragsprognose</h2>
         <input type="hidden" id="forecastMachineId" />
-        <label>Gesamtanzahl der Kisten im Auftrag:<br />
-            <input type="number" id="forecastTotalBoxes" min="1" value="10" />
-        </label>
-        <label>Aktuelle Kistennummer davon:<br />
-            <input type="number" id="forecastCurrentBoxNumber" min="1" value="1" />
-        </label>
-        <label>Füllmenge dieser aktuellen Kiste:<br />
-            <input type="number" id="forecastCurrentFill" min="0" value="0" />
-        </label>
+        <label>Gesamtanzahl Kisten:<br /><input type="number" id="forecastTotalBoxes" min="1" value="10" /></label>
+        <label>Aktuelle Kistennummer:<br /><input type="number" id="forecastCurrentBoxNumber" min="1" value="1" /></label>
+        <label>Füllmenge aktueller Kiste:<br /><input type="number" id="forecastCurrentFill" min="0" value="0" /></label>
         <label style="display: inline-flex; align-items: center; gap: 10px;">
             <input type="checkbox" id="forecastRunsOnWeekend" checked /> Läuft am Wochenende
         </label>
@@ -163,11 +161,12 @@
         messagingSenderId: "161547195519",
         appId: "1:161547195519:web:3a0d8fa3c90960eaa7db4a"
     };
+    let messaging;
     try {
         const app = initializeApp(firebaseConfig);
-        const messaging = getMessaging(app);
+        messaging = getMessaging(app);
     } catch (e) {
-        console.error("Firebase initialization failed:", e);
+        console.error("Firebase konnte nicht initialisiert werden. Push-Benachrichtigungen sind deaktiviert.", e);
     }
 
     // --- GLOBALE VARIABLEN & KONSTANTEN ---
@@ -183,12 +182,10 @@
     try {
        audio = new Audio('./assets/beep.mp3');
     } catch(e) {
-        console.warn("Audio context could not be created. Sound will be disabled.");
+        console.warn("Audio konnte nicht erstellt werden. Tonwiedergabe ist deaktiviert.");
     }
 
-
-    // --- DATENMIGRATION ---
-    // Stellt sicher, dass aus dem Speicher geladene Maschinen alle nötigen Eigenschaften haben
+    // --- DATENMIGRATION BEIM START ---
     machines.forEach(machine => {
         machine.isPaused = machine.isPaused || false;
         machine.isFillingManually = machine.isFillingManually || false;
@@ -212,26 +209,17 @@
 
     // --- PUSH & EXTERNE SERVICES ---
     window.initPushNotifications = function() {
-        if (!('Notification' in window) || !('serviceWorker' in navigator) || !messaging) {
-            alert("Push-Benachrichtigungen werden von diesem Browser nicht unterstützt.");
-            return;
-        }
-        Notification.requestPermission().then((permission) => {
+        if (!messaging) return alert("Push-Benachrichtigungen sind nicht verfügbar.");
+        Notification.requestPermission().then(permission => {
             if (permission === 'granted') {
-                console.log('Notification permission granted.');
                 const vapidKey = 'BMehjID94jiDYaX4StW5gIoV9Ct9PrMqT3gZtoyl5mfOE4aiOyINP6n0D4RmHQvoJGi3Ll0gPPh0wYHomQkZmuU';
-                getToken(messaging, { vapidKey: vapidKey }).then((currentToken) => {
+                getToken(messaging, { vapidKey }).then(currentToken => {
                     if (currentToken) {
-                        console.log('Firebase Push Token:', currentToken);
-                        alert('Push-Benachrichtigungen erfolgreich aktiviert!');
                         pushToken = currentToken;
                         localStorage.setItem('pushToken', currentToken);
-                    } else {
-                        console.log('No registration token available.');
+                        alert('Push-Benachrichtigungen erfolgreich aktiviert!');
                     }
-                }).catch((err) => console.error('Error retrieving token:', err));
-            } else {
-                console.log('Unable to get permission to notify.');
+                }).catch(err => console.error('Token-Fehler:', err));
             }
         });
     }
@@ -240,15 +228,12 @@
         if (!pushToken) return;
         const partsPerSecond = machine.cavities / machine.cycleTime;
         const secondsUntilFull = (machine.boxCapacity - machine.currentFill) / partsPerSecond;
-        const notificationBufferSeconds = 60;
-        let scheduledDelaySeconds = Math.max(1, secondsUntilFull - notificationBufferSeconds);
+        let scheduledDelaySeconds = Math.max(1, secondsUntilFull - 60);
         const functionUrl = 'https://schedulenotification-xxhao7ipkq-uc.a.run.app';
-        const data = { token: pushToken, machineName: machine.name, secondsUntilFull: scheduledDelaySeconds };
-        console.log(`[Frontend] Planungs-Auftrag für ${machine.name} gesendet. Geplante Ausführung in ca. ${Math.round(scheduledDelaySeconds / 60)} Minuten.`);
         try {
-            await fetch(functionUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            await fetch(functionUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: pushToken, machineName: machine.name, secondsUntilFull: scheduledDelaySeconds }) });
         } catch (error) {
-            console.error("Fehler beim Aufrufen der scheduleNotification Funktion:", error);
+            console.error("Schedule-Funktion Fehler:", error);
         }
     }
 
@@ -256,9 +241,9 @@
     function renderAllMachines() {
         const overviewContainer = document.getElementById('overview-machine-list');
         const adminContainer = document.getElementById('admin-machine-list');
-        overviewContainer.classList.toggle('compact-view', viewMode === 'compact');
-        adminContainer.innerHTML = '';
         overviewContainer.innerHTML = '';
+        adminContainer.innerHTML = '';
+        overviewContainer.classList.toggle('compact-view', viewMode === 'compact');
         machines.forEach(machine => {
             renderAdminMachine(machine, adminContainer);
             if (viewMode === 'detailed') {
@@ -267,7 +252,7 @@
                 renderCompactMachine(machine, overviewContainer);
             }
         });
-        machines.forEach(updateMachineUI); // Einmaliges Update nach dem Rendern
+        machines.forEach(updateMachineUI);
     }
 
     function renderAdminMachine(machine, container) {
@@ -275,16 +260,10 @@
         div.id = `machine-a-${machine.id}`;
         div.className = 'machine';
         div.innerHTML = `
-            <div class="header">
-                <div class="icon ${machine.type}">${machine.type}</div>
-                <div>${machine.name}</div>
-            </div>
-            <label>Aktuelle Füllmenge:<br>
-                <input type="number" class="fillInput" min="0" max="${machine.boxCapacity}" value="${Math.floor(machine.currentFill)}" />
-            </label>
+            <div class="header"><div class="icon ${machine.type}">${machine.type}</div><div>${machine.name}</div></div>
+            <label>Aktuelle Füllmenge:<br><input type="number" class="fillInput" value="${Math.floor(machine.currentFill)}"></label>
             <div class="progress-container"><div class="progress-bar"></div></div>
-            <div class="time-info"></div>
-            <div class="shift-info"></div>
+            <div class="time-info"></div><div class="shift-info"></div>
             <div class="machine-actions">
                 <button class="pause" onclick="togglePause(${machine.id})">Anhalten</button>
                 <button class="edit" onclick="openEditModal(${machine.id})">Bearbeiten</button>
@@ -292,14 +271,15 @@
                 <button class="delete" onclick="deleteMachine(${machine.id})">Löschen</button>
             </div>`;
         container.appendChild(div);
-        div.querySelector('.fillInput').addEventListener('blur', (e) => {
+        const fillInput = div.querySelector('.fillInput');
+        fillInput.addEventListener('focus', () => machine.isFillingManually = true);
+        fillInput.addEventListener('blur', (e) => {
             machine.isFillingManually = false;
             machine.currentFill = Math.min(machine.boxCapacity, Math.max(0, parseInt(e.target.value) || 0));
             machine.lastUpdate = Date.now();
             updateMachineUI(machine);
             saveMachines();
         });
-        div.querySelector('.fillInput').addEventListener('focus', () => machine.isFillingManually = true);
     }
 
     function renderDetailedMachine(machine, container) {
@@ -308,20 +288,11 @@
         div.className = 'machine';
         div.dataset.id = machine.id;
         div.innerHTML = `
-            <div class="header">
-                <div class="icon ${machine.type}">${machine.type}</div>
-                <div>${machine.name}</div>
-            </div>
-            <label>Aktuelle Füllmenge:<br>
-                <input type="number" class="fillInput" value="${Math.floor(machine.currentFill)}" disabled />
-            </label>
+            <div class="header"><div class="icon ${machine.type}">${machine.type}</div><div>${machine.name}</div></div>
+            <label>Aktuelle Füllmenge:<br><input type="number" class="fillInput" value="${Math.floor(machine.currentFill)}" disabled></label>
             <div class="progress-container"><div class="progress-bar"></div></div>
-            <div class="time-info"></div>
-            <div class="shift-info"></div>
-            <div class="notification-overlay">
-                <div>Kiste voll!</div>
-                <button onclick="acknowledgeBoxFull(${machine.id})">Quittieren</button>
-            </div>`;
+            <div class="time-info"></div><div class="shift-info"></div>
+            <div class="notification-overlay"><div>Kiste voll!</div><button onclick="acknowledgeBoxFull(${machine.id})">Quittieren</button></div>`;
         container.appendChild(div);
     }
 
@@ -332,17 +303,9 @@
         div.dataset.id = machine.id;
         div.innerHTML = `
             <div class="machine-name">${machine.name}</div>
-            <div class="progress-circle">
-                <div class="time-display">
-                    <span class="time-remaining"></span>
-                    <span class="time-of-day"></span>
-                </div>
-            </div>
+            <div class="progress-circle"><div class="time-display"><span class="time-remaining"></span><span class="time-of-day"></span></div></div>
             <div class="fill-level"></div>
-            <div class="notification-overlay">
-                <div>Kiste voll!</div>
-                <button onclick="acknowledgeBoxFull(${machine.id})">Quittieren</button>
-            </div>`;
+            <div class="notification-overlay"><div>Kiste voll!</div><button onclick="acknowledgeBoxFull(${machine.id})">Quittieren</button></div>`;
         container.appendChild(div);
     }
 
@@ -357,12 +320,10 @@
             const machineDiv = document.getElementById(`machine-${prefix}-${machine.id}`);
             if (!machineDiv) return;
 
-            const notificationOverlay = machineDiv.querySelector('.notification-overlay');
-            if (notificationOverlay) {
-                notificationOverlay.style.display = machine.boxJustBecameFull ? 'flex' : 'none';
-            }
             machineDiv.classList.toggle('box-full', !!machine.boxJustBecameFull);
             machineDiv.classList.toggle('paused', !!machine.isPaused);
+            const notificationOverlay = machineDiv.querySelector('.notification-overlay');
+            if (notificationOverlay) notificationOverlay.style.display = machine.boxJustBecameFull ? 'flex' : 'none';
 
             if (prefix === 'a' || (prefix === 'o' && viewMode === 'detailed')) {
                 const timeDiv = machineDiv.querySelector('.time-info');
@@ -377,20 +338,22 @@
                 const shiftInfoDiv = machineDiv.querySelector('.shift-info');
                 if (shiftInfoDiv) {
                     const shiftEndTime = getShiftEndTime(now, currentShift);
-                    const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
-                    const totalPartsPossibleInShift = machine.currentFill + (remainingShiftTimeSec * partsPerSecond);
-                    const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor(totalPartsPossibleInShift / machine.boxCapacity);
-                    shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
+                    if (shiftEndTime) {
+                        const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
+                        const totalPartsPossibleInShift = machine.currentFill + (remainingShiftTimeSec * partsPerSecond);
+                        const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor(totalPartsPossibleInShift / machine.boxCapacity);
+                        shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
+                    }
                 }
 
                 const fillInput = machineDiv.querySelector('.fillInput');
                 if (fillInput && !machine.isFillingManually) fillInput.value = Math.floor(machine.currentFill);
                 
                 if (prefix === 'a') {
-                    const pauseButton = machineDiv.querySelector('.machine-actions .pause, .machine-actions .resume');
+                    const pauseButton = machineDiv.querySelector('.machine-actions button');
                     if (pauseButton) {
                         pauseButton.textContent = machine.isPaused ? 'Fortsetzen' : 'Anhalten';
-                        pauseButton.className = `button ${machine.isPaused ? 'resume' : 'pause'}`;
+                        pauseButton.className = machine.isPaused ? 'resume' : 'pause';
                     }
                 }
             } else if (prefix === 'o' && viewMode === 'compact') {
@@ -417,7 +380,7 @@
     // --- KERN-FUNKTIONEN ---
     window.addMachine = function() {
         const name = document.getElementById('name').value.trim();
-        if (!name) { alert('Bitte Namen eingeben.'); return; }
+        if (!name) return alert('Bitte Namen eingeben.');
         const newMachine = {
             id: Date.now(),
             name: name,
@@ -437,7 +400,7 @@
         machines.push(newMachine);
         saveMachines();
         renderAllMachines();
-        ['name', 'cavities', 'cycleTime', 'boxCapacity'].forEach(id => document.getElementById(id).value = document.getElementById(id).defaultValue);
+        document.getElementById('add-machine-container').querySelector('form')?.reset(); // Resets form if available
     }
 
     window.acknowledgeBoxFull = function(machineId) {
@@ -453,7 +416,7 @@
         const machine = machines.find(m => m.id === machineId);
         if (!machine) return;
         machine.isPaused = !machine.isPaused;
-        if (!machine.isPaused) machine.lastUpdate = Date.now();
+        machine.lastUpdate = Date.now();
         updateMachineUI(machine);
         saveMachines();
     }
@@ -471,9 +434,8 @@
         document.getElementById('editMachineModal').style.display = 'block';
     }
 
-    window.closeEditModal = function() {
-        document.getElementById('editMachineModal').style.display = 'none';
-    }
+    window.closeEditModal = function() { document.getElementById('editMachineModal').style.display = 'none'; }
+    window.closeForecastModal = function() { document.getElementById('forecastModal').style.display = 'none'; }
 
     window.saveMachineChanges = function() {
         const machineId = parseInt(document.getElementById('editMachineId').value);
@@ -492,7 +454,7 @@
     }
 
     window.deleteMachine = function(machineId) {
-        if (confirm('Sind Sie sicher, dass Sie diese Maschine löschen möchten?')) {
+        if (confirm(`Soll die Maschine wirklich gelöscht werden?`)) {
             machines = machines.filter(m => m.id !== machineId);
             saveMachines();
             renderAllMachines();
@@ -506,10 +468,6 @@
         document.getElementById('forecastModal').style.display = 'block';
     }
 
-    window.closeForecastModal = function() {
-        document.getElementById('forecastModal').style.display = 'none';
-    }
-
     window.calculateForecast = function() {
         const machineId = parseInt(document.getElementById('forecastMachineId').value);
         const machine = machines.find(m => m.id === machineId);
@@ -521,12 +479,10 @@
         if (totalBoxes <= 0 || currentBoxNumber > totalBoxes) return alert('Ungültige Auftragsdaten.');
 
         const partsPerSecond = machine.cavities / machine.cycleTime;
-        const remainingPartsInCurrentBox = Math.max(0, machine.boxCapacity - currentFill);
-        let secondsToProduce = (remainingPartsInCurrentBox / partsPerSecond) + ((totalBoxes - currentBoxNumber) * machine.boxCapacity) / partsPerSecond;
+        let secondsToProduce = ((machine.boxCapacity - currentFill) / partsPerSecond) + ((totalBoxes - currentBoxNumber) * machine.boxCapacity) / partsPerSecond;
         
         let finalCompletionDate = new Date();
-        let remainingSecondsToProduce = secondsToProduce;
-        while (remainingSecondsToProduce > 0) {
+        while (secondsToProduce > 0) {
             const currentDay = finalCompletionDate.getDay();
             const currentHour = finalCompletionDate.getHours();
             let isPauseHour = !runsOnWeekend && ((currentDay === 6 && currentHour >= 4) || currentDay === 0 || (currentDay === 1 && currentHour < 7));
@@ -534,13 +490,11 @@
                 finalCompletionDate.setHours(finalCompletionDate.getHours() + 1);
                 continue;
             }
-            const timeStep = 3600;
-            remainingSecondsToProduce -= timeStep;
-            finalCompletionDate.setHours(finalCompletionDate.getHours() + 1);
+            const timeStep = Math.min(secondsToProduce, 3600);
+            secondsToProduce -= timeStep;
+            finalCompletionDate.setSeconds(finalCompletionDate.getSeconds() + timeStep);
         }
-        finalCompletionDate.setSeconds(finalCompletionDate.getSeconds() - (-remainingSecondsToProduce));
-        const formattedDate = finalCompletionDate.toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-        document.getElementById('forecastResult').innerHTML = `Voraussichtlich fertig am:<br><strong>${formattedDate} Uhr</strong>`;
+        document.getElementById('forecastResult').innerHTML = `Voraussichtlich fertig am:<br><strong>${finalCompletionDate.toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' })} Uhr</strong>`;
     }
 
     // --- HELPER-FUNKTIONEN ---
@@ -554,15 +508,12 @@
     }
 
     function getShiftEndTime(currentDate, shift) {
-        if (!shift || typeof shift.endHour !== 'number' || typeof shift.endMinute !== 'number') {
-            console.error("Ungültiges Schicht-Objekt:", shift);
+        if (!shift || typeof shift.endHour !== 'number') {
             return new Date(currentDate);
         }
         const endDate = new Date(currentDate);
-        endDate.setHours(shift.endHour, shift.endMinute, 0, 0);
-        if (endDate.getTime() <= currentDate.getTime()) {
-            endDate.setDate(endDate.getDate() + 1);
-        }
+        endDate.setHours(shift.endHour, shift.endMinute || 0, 0, 0);
+        if (endDate <= currentDate) endDate.setDate(endDate.getDate() + 1);
         return endDate;
     }
 
@@ -577,20 +528,18 @@
     }
     
     function formatTimeOfDay(date) {
-        if (!(date instanceof Date) || isNaN(date)) return '--:--';
         return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
     }
     
     // --- HAUPT-UPDATE-SCHLEIFE ---
     setInterval(() => {
-        const now = new Date();
+        const now = Date.now();
         machines.forEach(machine => {
             if (!machine.isPaused && !machine.isFillingManually) {
-                const elapsedSec = (now.getTime() - machine.lastUpdate) / 1000;
-                const partsProduced = elapsedSec * (machine.cavities / machine.cycleTime);
-                if (partsProduced > 0) {
-                    machine.currentFill += partsProduced;
-                    machine.lastUpdate = now.getTime();
+                const elapsedSec = (now - machine.lastUpdate) / 1000;
+                if (elapsedSec > 0) {
+                    machine.currentFill += elapsedSec * (machine.cavities / machine.cycleTime);
+                    machine.lastUpdate = now;
                 }
                 let wasBoxJustFilled = false;
                 while (machine.currentFill >= machine.boxCapacity) {
@@ -601,7 +550,7 @@
                     machine.boxJustBecameFull = true;
                 }
                 if (wasBoxJustFilled) {
-                    if(audio && typeof audio.play === 'function') audio.play().catch(e => console.warn("Audio playback failed.", e));
+                    if (audio && typeof audio.play === 'function') audio.play().catch(e=>console.warn("Audio-Wiedergabe fehlgeschlagen",e));
                     schedulePushNotificationsFor(machine);
                 }
             }
@@ -641,8 +590,7 @@
             delay: 200,
             delayOnTouchOnly: true,
             onEnd: function (evt) {
-                const movedItem = machines.splice(evt.oldIndex, 1)[0];
-                machines.splice(evt.newIndex, 0, movedItem);
+                machines.splice(evt.newIndex, 0, machines.splice(evt.oldIndex, 1)[0]);
                 saveMachines();
             }
         });
