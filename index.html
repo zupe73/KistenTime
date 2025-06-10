@@ -209,20 +209,42 @@
 
     // --- PUSH & EXTERNE SERVICES ---
     window.initPushNotifications = function() {
-        if (!messaging) return alert("Push-Benachrichtigungen sind nicht verfügbar.");
-        Notification.requestPermission().then(permission => {
-            if (permission === 'granted') {
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !messaging) {
+        alert("Push-Benachrichtigungen werden von diesem Browser nicht unterstützt oder Firebase ist nicht initialisiert.");
+        return;
+    }
+
+    Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') {
+            console.log('Benachrichtigungs-Berechtigung erteilt.');
+
+            // WARTEN, bis dein Service Worker bereit ist
+            navigator.serviceWorker.ready.then((registration) => {
+                console.log('Service Worker ist bereit:', registration);
                 const vapidKey = 'BMehjID94jiDYaX4StW5gIoV9Ct9PrMqT3gZtoyl5mfOE4aiOyINP6n0D4RmHQvoJGi3Ll0gPPh0wYHomQkZmuU';
-                getToken(messaging, { vapidKey }).then(currentToken => {
+
+                // ÜBERGIB die Registrierung an getToken
+                getToken(messaging, {
+                    vapidKey: vapidKey,
+                    serviceWorkerRegistration: registration // <-- This is the crucial part
+                }).then((currentToken) => {
                     if (currentToken) {
                         pushToken = currentToken;
                         localStorage.setItem('pushToken', currentToken);
                         alert('Push-Benachrichtigungen erfolgreich aktiviert!');
+                        console.log('Firebase Push Token:', currentToken);
+                    } else {
+                        console.log('Kein Token verfügbar. Stelle sicher, dass der Service Worker korrekt ist.');
                     }
-                }).catch(err => console.error('Token-Fehler:', err));
-            }
-        });
-    }
+                }).catch((err) => {
+                    console.error('Fehler beim Abrufen des Tokens:', err);
+                });
+            });
+        } else {
+            console.log('Berechtigung für Benachrichtigungen wurde nicht erteilt.');
+        }
+    });
+}
 
     async function schedulePushNotificationsFor(machine) {
         if (!pushToken) return;
