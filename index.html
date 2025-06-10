@@ -258,7 +258,27 @@
             console.error("Schedule-Funktion Fehler:", error);
         }
     }
+// HELFERFUNKTION FÜR MANUELLE FÜLLSTAND-EINGABE
+function addFillInputListeners(div, machine) {
+    const fillInput = div.querySelector('.fillInput');
+    if (!fillInput) return;
 
+    // Pausiert die automatische Aktualisierung, während der Benutzer tippt
+    fillInput.addEventListener('focus', () => {
+        machine.isFillingManually = true;
+    });
+
+    // Speichert den neuen Wert, wenn der Benutzer das Feld verlässt
+    fillInput.addEventListener('blur', (e) => {
+        machine.isFillingManually = false;
+        const newValue = parseInt(e.target.value, 10) || 0;
+        machine.currentFill = Math.min(machine.boxCapacity, Math.max(0, newValue));
+        machine.lastUpdate = Date.now();
+        
+        updateMachineUI(machine);
+        saveMachines();
+    });
+}
     // --- RENDERING & UI ---
     function renderAllMachines() {
         const overviewContainer = document.getElementById('overview-machine-list');
