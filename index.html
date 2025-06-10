@@ -10,9 +10,9 @@
   body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f4f4; color: #333; }
   .content-wrapper { padding: 20px; }
   h1, h2 { color: #0056b3; }
-  .machine, .machine-compact { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease; cursor: grab; }
-  .machine:active, .machine-compact:active { cursor: grabbing; }
-  .sortable-ghost { opacity: 0.4; background: #cce5ff; }
+  .machine { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease; cursor: grab; }
+  .machine:active { cursor: grabbing; }
+  .machine.sortable-ghost { opacity: 0.4; background: #cce5ff; }
   .header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
   .icon { font-weight: bold; font-size: 20px; width: 30px; height: 30px; border-radius: 50%; color: white; text-align: center; line-height: 30px; display: flex; align-items: center; justify-content: center; }
   .E { background: #4CAF50; } .KM { background: #2196F3; } .A { background: #F44336; }
@@ -37,7 +37,7 @@
   .machine-actions button.resume { background-color: #4CAF50; }
   .machine-actions button.forecast { background-color: #9C27B0; }
   nav { background-color: #0056b3; padding: 10px; display: flex; justify-content: center; gap: 10px; position: sticky; top: 0; z-index: 1; }
-  nav button { background-color: transparent; border: 1px solid #fff; color: #fff; font-size: 14px; padding: 8px 12px; }
+  nav button { background-color: transparent; border: 1px solid #fff; color: #fff; font-size: 14px; padding: 8px 12px; cursor: pointer; }
   nav button.active { background-color: #fff; color: #0056b3; font-weight: bold; }
   .page { display: none; }
   .page.active { display: block; }
@@ -45,9 +45,9 @@
   .view-switcher button { padding: 8px 12px; border: 1px solid #ccc; background-color: #f8f9fa; color: #333; cursor: pointer; }
   .view-switcher button.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
   #overview-machine-list.compact-view { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  #overview-machine-list.detailed-view { display: block; }
+  .machine-compact { display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #fff; border: 1px solid #ddd; padding: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; cursor: grab; }
   .machine-compact .machine-name { font-weight: bold; font-size: 0.9em; margin-bottom: 8px; }
-  .progress-circle { width: 80px; height: 80px; border-radius: 50%; display: flex; justify-content: center; align-items: center; position: relative; background: conic-gradient( var(--progress-color, #4CAF50) calc(var(--progress-percent, 0) * 1%), #e9ecef 0 ); transition: background 0.1s linear; }
+  .progress-circle { width: 80px; height: 80px; border-radius: 50%; display: flex; justify-content: center; align-items: center; position: relative; background: conic-gradient( var(--progress-color, #4CAF50) calc(var(--progress-percent, 0) * 1%), #e9ecef 0 ); transition: background 0.1s linear;}
   .progress-circle::before { content: ''; position: absolute; width: 66px; height: 66px; background: #fff; border-radius: 50%; }
   .progress-circle .time-display { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; }
   .progress-circle .time-remaining { font-size: 1.1em; font-weight: bold; color: #333; }
@@ -63,16 +63,16 @@
 <body>
 
 <nav>
-    <button id="nav-overview">Übersicht</button>
-    <button id="nav-admin">Verwaltung</button>
+    <button id="nav-overview" onclick="showPage('overview-page')">Übersicht</button>
+    <button id="nav-admin" onclick="showPage('admin-page')">Verwaltung</button>
 </nav>
 
-<div id="overview-page" class="page">
+<div id="overview-page" class="page active">
     <div class="content-wrapper">
         <h1>Maschinenübersicht</h1>
         <h3 id="total-shift-forecast"></h3>
         <div class="view-switcher">
-            <button id="view-detailed-btn">Detailliert</button>
+            <button id="view-detailed-btn" class="active">Detailliert</button>
             <button id="view-compact-btn">Kompakt</button>
         </div>
         <div id="overview-machine-list"></div>
@@ -95,8 +95,8 @@
             <label>Zykluszeit (Sekunden):<br /><input type="number" id="cycleTime" min="0.01" step="0.01" value="10" /></label>
             <label>Kistenfüllmenge:<br /><input type="number" id="boxCapacity" min="1" value="100" /></label>
             <br>
-            <button id="add-machine-btn">Maschine hinzufügen</button>
-            <button id="init-push-btn">Push-Benachrichtigungen aktivieren</button>
+            <button onclick="addMachine()">Maschine hinzufügen</button>
+            <button onclick="initPushNotifications()">Push-Benachrichtigungen aktivieren</button>
         </div>
         <div class="admin-list-container">
             <h2>Maschinen verwalten</h2>
@@ -107,24 +107,39 @@
 
 <div id="editMachineModal" class="modal">
     <div class="modal-content">
-        <span id="close-edit-modal-btn" class="close-button">&times;</span>
+        <span class="close-button" onclick="closeEditModal()">&times;</span>
         <h2>Maschine bearbeiten</h2>
         <input type="hidden" id="editMachineId" />
         <label>Name:<br /><input type="text" id="editName" /></label>
+        <label>Typ:<br />
+            <select id="editType">
+                <option value="E">E (Engel)</option>
+                <option value="KM">KM (KraussMaffei)</option>
+                <option value="A">A (Arburg)</option>
+            </select>
+        </label>
+        <label>Kavitätenanzahl:<br /><input type="number" id="editCavities" min="1" /></label>
+        <label>Zykluszeit (Sekunden):<br /><input type="number" id="editCycleTime" min="0.01" step="0.01" /></label>
         <label>Kistenfüllmenge:<br /><input type="number" id="editBoxCapacity" min="1" /></label>
         <label>Kisten in aktueller Schicht:<br /><input type="number" id="editBoxesCompletedShift" min="0" /></label>
         <br>
-        <button id="save-changes-btn">Änderungen speichern</button>
+        <button onclick="saveMachineChanges()">Änderungen speichern</button>
     </div>
 </div>
 
 <div id="forecastModal" class="modal">
     <div class="modal-content">
-        <span id="close-forecast-modal-btn" class="close-button">&times;</span>
+        <span class="close-button" onclick="closeForecastModal()">&times;</span>
         <h2>Auftragsprognose</h2>
         <input type="hidden" id="forecastMachineId" />
+        <label>Gesamtanzahl der Kisten im Auftrag:<br /><input type="number" id="forecastTotalBoxes" min="1" value="10" /></label>
+        <label>Aktuelle Kistennummer davon:<br /><input type="number" id="forecastCurrentBoxNumber" min="1" value="1" /></label>
+        <label>Füllmenge dieser aktuellen Kiste:<br /><input type="number" id="forecastCurrentFill" min="0" value="0" /></label>
+        <label style="display: inline-flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="forecastRunsOnWeekend" checked /> Läuft am Wochenende
+        </label>
         <br>
-        <button id="calculate-forecast-btn">Prognose berechnen</button>
+        <button onclick="calculateForecast()">Prognose berechnen</button>
         <div id="forecastResult" style="margin-top: 20px; font-size: 1.1em; font-weight: bold;"></div>
     </div>
 </div>
@@ -144,7 +159,21 @@
     const shifts = [{ name: "Frühschicht", startHour: 6, startMinute: 0, endHour: 13, endMinute: 50 }, { name: "Spätschicht", startHour: 14, startMinute: 0, endHour: 22, endMinute: 0 }, { name: "Nachtschicht", startHour: 22, startMinute: 0, endHour: 5, endMinute: 50, overnight: true }];
     const audio = new Audio('./assets/beep.mp3');
 
-    // --- GLOBALE FUNKTIONEN ---
+    // --- GLOBALE FUNKTIONEN ZUGÄNGLICH MACHEN ---
+    window.showPage = showPage;
+    window.acknowledgeBox = acknowledgeBox;
+    window.addMachine = addMachine;
+    window.initPushNotifications = initPushNotifications;
+    window.closeEditModal = closeEditModal;
+    window.saveMachineChanges = saveMachineChanges;
+    window.closeForecastModal = closeForecastModal;
+    window.calculateForecast = calculateForecast;
+    window.togglePause = togglePause;
+    window.openEditModal = openEditModal;
+    window.openForecastModal = openForecastModal;
+    window.deleteMachine = deleteMachine;
+
+    // --- FUNKTIONSDEFINITIONEN ---
     function showPage(pageIdToShow) {
         document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.id === pageIdToShow));
         document.querySelectorAll('nav button').forEach(button => button.classList.toggle('active', button.id === `nav-${pageIdToShow.split('-')[0]}`));
@@ -157,13 +186,25 @@
             updateMachineUI(machine);
         }
     }
-    window.acknowledgeBox = acknowledgeBox;
-
-    // --- DATEN-PERSISTENZ ---
     function saveMachines() { localStorage.setItem('machines', JSON.stringify(machines)); }
 
-    // --- PUSH & EXTERNE SERVICES ---
-    function initPushNotifications() { /* ... unverändert ... */ }
+    function initPushNotifications() {
+        Notification.requestPermission().then((permission) => {
+            if (permission !== 'granted') return;
+            navigator.serviceWorker.ready.then((registration) => {
+                const vapidKey = 'BMehjID94jiDYaX4StW5gIoV9Ct9PrMqT3gZtoyl5mfOE4aiOyINP6n0D4RmHQvoJGi3Ll0gPPh0wYHomQkZmuU';
+                getToken(messaging, { vapidKey, serviceWorkerRegistration: registration })
+                    .then((currentToken) => {
+                        if (currentToken) {
+                            alert('Push-Benachrichtigungen erfolgreich aktiviert!');
+                            pushToken = currentToken;
+                            localStorage.setItem('pushToken', currentToken);
+                        }
+                    }).catch((err) => console.error('Error retrieving token:', err));
+            });
+        });
+    }
+
     async function schedulePushNotificationsFor(machine) {
         if (!pushToken) return;
         const partsPerSecond = machine.cavities / machine.cycleTime;
@@ -173,26 +214,75 @@
         if (scheduledDelaySeconds < 1) scheduledDelaySeconds = 1;
         const functionUrl = 'https://schedulenotification-xxhao7ipkq-uc.a.run.app';
         const data = { token: pushToken, machineName: machine.name, secondsUntilFull: scheduledDelaySeconds };
+        console.log(`[Frontend] Planungs-Auftrag für ${machine.name}. Ausführung in ca. ${Math.round(scheduledDelaySeconds / 60)} Min.`);
         try {
             await fetch(functionUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
         } catch (error) { console.error("Fehler beim Aufrufen der scheduleNotification Funktion:", error); }
     }
+    
     function notifyBoxFull(machine) { console.log(`Event "Kiste voll" für ${machine.name} ausgelöst.`); }
     function playBeep() { audio.play().catch(e => console.error("Could not play sound:", e)); }
 
-    // --- RENDERING & UI ---
-    function renderMachine(machine, view, isOverviewCard) {
-        const div = document.createElement('div');
+    function renderMachine(machine, container, isOverview) {
+        const prefix = isOverview ? 'o' : 'a';
+        let div = document.getElementById(`machine-<span class="math-inline">\{prefix\}\-</span>{machine.id}`);
+        if (!div) {
+            div = document.createElement('div');
+            div.id = `machine-<span class="math-inline">\{prefix\}\-</span>{machine.id}`;
+            div.dataset.id = machine.id;
+            container.appendChild(div);
+        }
+        
+        div.className = `machine ${machine.isPaused ? 'paused' : ''}`;
+        const pauseButtonText = machine.isPaused ? 'Fortsetzen' : 'Anhalten';
+        const pauseButtonClass = machine.isPaused ? 'resume' : 'pause';
+        const actionsHtml = isOverview ? '' : `
+            <div class="machine-actions">
+                <button class="<span class="math-inline">\{pauseButtonClass\}" onclick\="togglePause\(</span>{machine.id})"><span class="math-inline">\{pauseButtonText\}</button\>
+<button class\="edit" onclick\="openEditModal\(</span>{machine.id})">Bearbeiten</button>
+                <button class="forecast" onclick="openForecastModal(<span class="math-inline">\{machine\.id\}\)"\>Prognose</button\>
+<button class\="delete" onclick\="deleteMachine\(</span>{machine.id})">Löschen</button>
+            </div>`;
+        div.innerHTML = `
+            <div class="acknowledgement-notice">
+                <span>Kiste ist voll!</span>
+                <button class="ack-button" onclick="acknowledgeBox(${machine.id})">OK</button>
+            </div>
+            <div class="header">
+                <div class="icon <span class="math-inline">\{machine\.type\}"\></span>{machine.type}</div>
+                <div><span class="math-inline">\{machine\.name\}</div\>
+</div\>
+<label\>Aktuelle Füllmenge\:<br\>
+<input type\="number" class\="fillInput" value\="</span>{Math.floor(machine.currentFill)}">
+            </label>
+            <div class="progress-container"><div class="progress-bar"></div></div>
+            <div class="time-info"></div>
+            <div class="shift-info"></div>
+            ${actionsHtml}`;
+
+        const fillInput = div.querySelector('.fillInput');
+        if (isOverview) {
+            fillInput.disabled = true;
+        } else {
+            fillInput.addEventListener('change', (e) => {
+                const machine = machines.find(m => m.id == e.target.closest('.machine').dataset.id);
+                if(machine) {
+                    machine.currentFill = Math.min(machine.boxCapacity, Math.max(0, parseInt(e.target.value) || 0));
+                    machine.lastUpdate = Date.now();
+                    saveMachines();
+                    updateMachineUI(machine);
+                }
+            });
+        }
+    }
+
+    function renderCompactMachine(machine, container) {
+        let div = document.createElement('div');
+        div.id = `machine-o-${machine.id}`;
+        div.className = 'machine-compact';
         div.dataset.id = machine.id;
-        div.id = `machine-<span class="math-inline">\{isOverviewCard ? 'o' \: 'a'\}\-</span>{machine.id}`;
-        div.className = `machine ${view === 'compact' ? 'machine-compact' : ''} ${machine.isPaused ? 'paused' : ''}`;
-
-        const actionsHtml = isOverviewCard ? '' : `...`; // Unverändert
-        let contentHtml = '';
-
-        if (view === 'compact') {
-            contentHtml = `
-                <div class="machine-name"><span class="math-inline">\{machine\.name\}</div\>
+        div.innerHTML = `
+            <div class="machine-name"><span class="math-inline">\{machine\.name\}</div\>
 <div class\="progress\-circle"\>
 <div class\="time\-display"\>
 <span class\="time\-remaining"\></span\>
@@ -203,29 +293,10 @@
 <div class\="acknowledgement\-notice"\>
 <span\>Kiste voll\!</span\>
 <button class\="ack\-button" onclick\="acknowledgeBox\(</span>{machine.id})">OK</button>
-                </div>`;
-        } else { // detailed or admin view
-            contentHtml = `
-                <div class="acknowledgement-notice">
-                    <span>Kiste ist voll!</span>
-                    <button class="ack-button" onclick="acknowledgeBox(${machine.id})">OK</button>
-                </div>
-                <div class="header">
-                    <div class="icon <span class="math-inline">\{machine\.type\}"\></span>{machine.type}</div>
-                    <div><span class="math-inline">\{machine\.name\}</div\>
-</div\>
-<label\>Aktuelle Füllmenge\:<br\>
-<input type\="number" class\="fillInput" min\="0" max\="</span>{machine.boxCapacity}" value="${Math.floor(machine.currentFill)}">
-                </label>
-                <div class="progress-container"><div class="progress-bar"></div></div>
-                <div class="time-info"></div>
-                <div class="shift-info"></div>
-                ${isOverviewCard ? '' : actionsHtml}`;
-        }
-        div.innerHTML = contentHtml;
-        return div;
+            </div>`;
+        container.appendChild(div);
     }
-
+    
     function renderAllMachines() {
         const overviewContainer = document.getElementById('overview-machine-list');
         const adminContainer = document.getElementById('admin-machine-list');
@@ -236,9 +307,13 @@
         overviewContainer.innerHTML = ''; 
 
         machines.forEach(machine => {
-            adminContainer.appendChild(renderMachine(machine, 'admin', false));
+            renderMachine(machine, adminContainer, false);
             if (!machine.isPaused) {
-                overviewContainer.appendChild(renderMachine(machine, viewMode, true));
+                if (viewMode === 'detailed') {
+                    renderMachine(machine, overviewContainer, true);
+                } else {
+                    renderCompactMachine(machine, overviewContainer);
+                }
             }
         });
     }
@@ -252,7 +327,7 @@
         if (partsPerSecond > 0 && !machine.isPaused) {
             const totalTimeForBox = (machine.boxCapacity / machine.cavities) * machine.cycleTime;
             const timeElapsed = totalTimeForBox - secondsLeft;
-            progressPercent = (timeElapsed / totalTimeForBox) * 100;
+            progressPercent = Math.min(100, (timeElapsed / totalTimeForBox) * 100);
         } else {
             progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
         }
@@ -263,9 +338,7 @@
 
             machineDiv.querySelector('.acknowledgement-notice').style.display = machine.boxJustFinished ? 'flex' : 'none';
             
-            const currentView = machineDiv.classList.contains('machine-compact') ? 'compact' : 'detailed';
-
-            if (currentView === 'compact') {
+            if (machineDiv.classList.contains('machine-compact')) {
                 const circleEl = machineDiv.querySelector('.progress-circle');
                 const timeRemainingEl = machineDiv.querySelector('.time-remaining');
                 const timeOfDayEl = machineDiv.querySelector('.time-of-day');
@@ -286,7 +359,7 @@
                     circleEl.style.setProperty('--progress-percent', progressPercent);
                     circleEl.style.setProperty('--progress-color', color);
                 }
-            } else {
+            } else { // Detaillierte Ansicht (Admin oder Übersicht)
                 const timeDiv = machineDiv.querySelector('.time-info');
                 if (timeDiv) {
                     if (machine.isPaused) timeDiv.textContent = 'Pausiert';
@@ -297,7 +370,7 @@
                 }
                 const progressBar = machineDiv.querySelector('.progress-bar');
                 if (progressBar) {
-                    progressBar.style.width = `${Math.min(100, progressPercent)}%`;
+                    progressBar.style.width = `${progressPercent}%`;
                     progressBar.className = 'progress-bar';
                     if (progressPercent < 70) progressBar.classList.add('green');
                     else if (progressPercent < 90) progressBar.classList.add('orange');
@@ -330,8 +403,7 @@
             }
         });
     }
-
-    // --- KERN-FUNKTIONEN ---
+    
     function addMachine() {
         const name = document.getElementById('name').value.trim();
         if (!name) return alert('Bitte Namen eingeben.');
@@ -349,18 +421,148 @@
         renderAllMachines();
         document.getElementById('name').value = '';
     }
-    // ... andere Kernfunktionen wie togglePause, openEditModal etc. ...
-    
+    function togglePause(machineId) {
+        const machine = machines.find(m => m.id === machineId);
+        if (machine) {
+            machine.isPaused = !machine.isPaused;
+            if (!machine.isPaused) machine.lastUpdate = Date.now();
+            saveMachines();
+            renderAllMachines();
+        }
+    }
+    function openEditModal(machineId) {
+        const machine = machines.find(m => m.id === machineId);
+        if (machine) {
+            document.getElementById('editMachineId').value = machine.id;
+            document.getElementById('editName').value = machine.name;
+            document.getElementById('editType').value = machine.type;
+            document.getElementById('editCavities').value = machine.cavities;
+            document.getElementById('editCycleTime').value = machine.cycleTime;
+            document.getElementById('editBoxCapacity').value = machine.boxCapacity;
+            document.getElementById('editBoxesCompletedShift').value = machine.boxesCompletedShift || 0;
+            document.getElementById('editMachineModal').style.display = 'block';
+        }
+    }
+    function closeEditModal() { document.getElementById('editMachineModal').style.display = 'none'; }
+    function saveMachineChanges() {
+        const machineId = parseInt(document.getElementById('editMachineId').value);
+        const machine = machines.find(m => m.id === machineId);
+        if (machine) {
+            machine.name = document.getElementById('editName').value.trim();
+            machine.type = document.getElementById('editType').value;
+            machine.cavities = parseInt(document.getElementById('editCavities').value) || 1;
+            machine.cycleTime = parseFloat(document.getElementById('editCycleTime').value) || 10;
+            machine.boxCapacity = parseInt(document.getElementById('editBoxCapacity').value) || 100;
+            machine.boxesCompletedShift = parseInt(document.getElementById('editBoxesCompletedShift').value) || 0;
+            machine.lastUpdate = Date.now();
+            saveMachines();
+            renderAllMachines();
+            closeEditModal();
+        }
+    }
+    function deleteMachine(machineId) {
+        if (confirm('Sind Sie sicher?')) {
+            machines = machines.filter(m => m.id !== machineId);
+            saveMachines();
+            renderAllMachines();
+        }
+    }
+    function openForecastModal(machineId) {
+        document.getElementById('forecastMachineId').value = machineId;
+        document.getElementById('forecastResult').innerHTML = '';
+        document.getElementById('forecastModal').style.display = 'block';
+    }
+    function closeForecastModal() { document.getElementById('forecastModal').style.display = 'none'; }
+    function calculateForecast() {
+        const machineId = parseInt(document.getElementById('forecastMachineId').value);
+        const machine = machines.find(m => m.id === machineId);
+        if (!machine) return;
+        const totalBoxes = parseInt(document.getElementById('forecastTotalBoxes').value) || 0;
+        const currentBoxNumber = parseInt(document.getElementById('forecastCurrentBoxNumber').value) || 1;
+        const currentFill = parseInt(document.getElementById('forecastCurrentFill').value) || 0;
+        const runsOnWeekend = document.getElementById('forecastRunsOnWeekend').checked;
+        if (totalBoxes <= 0 || currentBoxNumber > totalBoxes) { alert('Bitte gültige Auftragsdaten eingeben.'); return; }
+        const partsPerSecond = machine.cavities / machine.cycleTime;
+        const remainingPartsInCurrentBox = Math.max(0, machine.boxCapacity - currentFill);
+        const timeForCurrentBox = remainingPartsInCurrentBox / partsPerSecond;
+        const remainingFullBoxes = totalBoxes - currentBoxNumber;
+        let secondsToProduce = timeForCurrentBox + (remainingFullBoxes > 0 ? (remainingFullBoxes * machine.boxCapacity) / partsPerSecond : 0);
+        let finalCompletionDate = new Date();
+        let remainingSecondsToProduce = secondsToProduce;
+        while (remainingSecondsToProduce > 0) {
+            const currentDay = finalCompletionDate.getDay();
+            const currentHour = finalCompletionDate.getHours();
+            let isPauseHour = false;
+            if (!runsOnWeekend) {
+                if ((currentDay === 6 && currentHour >= 4) || (currentDay === 0) || (currentDay === 1 && currentHour < 7)) {
+                    isPauseHour = true;
+                }
+            }
+            if (isPauseHour) {
+                finalCompletionDate.setHours(finalCompletionDate.getHours() + 1);
+                continue;
+            }
+            remainingSecondsToProduce -= 3600;
+            finalCompletionDate.setHours(finalCompletionDate.getHours() + 1);
+        }
+        const overshootSeconds = -remainingSecondsToProduce;
+        finalCompletionDate.setSeconds(finalCompletionDate.getSeconds() - overshootSeconds);
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+        document.getElementById('forecastResult').innerHTML = `Der Auftrag ist voraussichtlich fertig am:<br><strong>${finalCompletionDate.toLocaleDateString('de-DE', options)} Uhr</strong>`;
+    }
+
     // --- HELPER-FUNKTIONEN ---
-    function formatTime(sec) { /* ... unverändert ... */ }
-    function formatTimeOfDay(date) { /* ... unverändert ... */ }
-    function getCurrentShift(now) { /* ... unverändert ... */ }
-    function getShiftEndTime(currentDate, shift) { /* ... unverändert ... */ }
+    function formatTime(sec) {
+        if (sec === Infinity || isNaN(sec)) { return '---'; }
+        sec = Math.round(sec);
+        const hours = Math.floor(sec / 3600);
+        const minutes = Math.floor((sec % 3600) / 60);
+        const seconds = sec % 60;
+        if (hours > 0) return `${hours}h ${String(minutes).padStart(2, '0')}m`;
+        if (minutes > 0) return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+        return `${seconds}s`;
+    }
+    function formatTimeOfDay(date) {
+        const h = String(date.getHours()).padStart(2, '0');
+        const m = String(date.getMinutes()).padStart(2, '0');
+        return `<span class="math-inline">\{h\}\:</span>{m}`;
+    }
+    function getCurrentShift(now) {
+        const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+        for (const shift of shifts) {
+            const startTotalMinutes = shift.startHour * 60 + shift.startMinute;
+            const endTotalMinutes = shift.endHour * 60 + shift.endMinute;
+            if (shift.overnight) {
+                if (currentTotalMinutes >= startTotalMinutes || currentTotalMinutes < endTotalMinutes) return shift;
+            } else {
+                if (currentTotalMinutes >= startTotalMinutes && currentTotalMinutes < endTotalMinutes) return shift;
+            }
+        }
+        return { name: "Außerhalb Schicht" };
+    }
+    function getShiftEndTime(currentDate, shift) {
+        const endDate = new Date(currentDate);
+        if (!shift || shift.name === "Außerhalb Schicht") { return endDate; }
+        endDate.setHours(shift.endHour, shift.endMinute, 0, 0);
+        if (shift.overnight && shift.startHour > shift.endHour && currentDate.getHours() >= shift.startHour) {
+            endDate.setDate(endDate.getDate() + 1);
+        } else if (endDate.getTime() <= currentDate.getTime()) {
+            endDate.setDate(endDate.getDate() + 1);
+        }
+        return endDate;
+    }
     
     // --- DRAG-AND-DROP LOGIK ---
     new Sortable(document.getElementById('overview-machine-list'), {
         animation: 150, ghostClass: 'sortable-ghost', delay: 200, delayOnTouchOnly: true,
-        onEnd: function (evt) { /* ... unverändert ... */ }
+        onEnd: function (evt) {
+            const movedItem = machines.find(m => m.id == evt.item.dataset.id);
+            if (!movedItem) return;
+            const oldIndex = machines.findIndex(m => m.id == movedItem.id);
+            machines.splice(oldIndex, 1);
+            machines.splice(evt.newIndex, 0, movedItem);
+            saveMachines();
+        }
     });
 
     // --- HAUPT-UPDATE-SCHLEIFE ---
@@ -369,7 +571,7 @@
         let totalBoxesForecast = 0;
         
         machines.forEach(machine => {
-            if (!machine.isPaused && document.activeElement?.closest('.machine')?.dataset.id != machine.id) {
+            if (!machine.isPaused && !machine.isFillingManually) {
                 const elapsedSec = (now.getTime() - machine.lastUpdate) / 1000;
                 const fullCycles = Math.floor(elapsedSec / machine.cycleTime);
                 if (fullCycles > 0) {
@@ -389,7 +591,7 @@
                         schedulePushNotificationsFor(machine);
                     }
                 }
-            } else if(machine.isPaused) {
+            } else {
                 machine.lastUpdate = now.getTime();
             }
             
@@ -428,31 +630,23 @@
             });
         }
         
-        // Event Listener für Buttons
         document.getElementById('nav-overview').addEventListener('click', () => showPage('overview-page'));
         document.getElementById('nav-admin').addEventListener('click', () => showPage('admin-page'));
-        document.getElementById('add-machine-btn').addEventListener('click', addMachine);
-        document.getElementById('init-push-btn').addEventListener('click', initPushNotifications);
-        document.getElementById('save-changes-btn').addEventListener('click', saveMachineChanges);
-        document.getElementById('close-edit-modal-btn').addEventListener('click', closeEditModal);
-        document.getElementById('calculate-forecast-btn').addEventListener('click', calculateForecast);
-        document.getElementById('close-forecast-modal-btn').addEventListener('click', closeForecastModal);
+        document.getElementById('view-detailed-btn').addEventListener('click', () => { viewMode = 'detailed'; renderAllMachines(); });
+        document.getElementById('view-compact-btn').addEventListener('click', () => { viewMode = 'compact'; renderAllMachines(); });
+        
+        document.getElementById('add-machine-btn').onclick = addMachine;
+        document.getElementById('init-push-btn').onclick = initPushNotifications;
+        document.getElementById('save-changes-btn').onclick = saveMachineChanges;
+        document.getElementById('close-edit-modal-btn').onclick = closeEditModal;
+        document.getElementById('calculate-forecast-btn').onclick = calculateForecast;
+        document.getElementById('close-forecast-modal-btn').onclick = closeForecastModal;
 
         document.getElementById('admin-machine-list').addEventListener('click', (e) => {
-            const button = e.target.closest('button[data-action]');
+            const button = e.target.closest('button[onclick]');
             if (!button) return;
-            const action = button.dataset.action;
-            const id = parseInt(button.dataset.id);
-            if (action === 'togglePause') togglePause(id);
-            if (action === 'openEdit') openEditModal(id);
-            if (action === 'openForecast') openForecastModal(id);
-            if (action === 'deleteMachine') deleteMachine(id);
+            // Die onclick-Attribute werden direkt vom HTML ausgeführt.
         });
-
-        const detailedBtn = document.getElementById('view-detailed-btn');
-        const compactBtn = document.getElementById('view-compact-btn');
-        detailedBtn.addEventListener('click', () => { viewMode = 'detailed'; renderAllMachines(); });
-        compactBtn.addEventListener('click', () => { viewMode = 'compact'; renderAllMachines(); });
 
         // Initialer Start
         renderAllMachines();
