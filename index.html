@@ -278,31 +278,33 @@
     }
 
     function renderAdminMachine(machine, container) {
-        const div = document.createElement('div');
-        div.id = `machine-a-${machine.id}`;
-        div.className = 'machine';
-        div.innerHTML = `
-            <div class="header"><div class="icon ${machine.type}">${machine.type}</div><div>${machine.name}</div></div>
-            <label>Aktuelle Füllmenge:<br><input type="number" class="fillInput" value="${Math.floor(machine.currentFill)}"></label>
-            <div class="progress-container"><div class="progress-bar"></div></div>
-            <div class="time-info"></div><div class="shift-info"></div>
-            <div class="machine-actions">
-                <button class="pause" onclick="togglePause(${machine.id})">Anhalten</button>
-                <button class="edit" onclick="openEditModal(${machine.id})">Bearbeiten</button>
-                <button class="forecast" onclick="openForecastModal(${machine.id})">Prognose</button>
-                <button class="delete" onclick="deleteMachine(${machine.id})">Löschen</button>
-            </div>`;
-        container.appendChild(div);
-        const fillInput = div.querySelector('.fillInput');
-        fillInput.addEventListener('focus', () => machine.isFillingManually = true);
-        fillInput.addEventListener('blur', (e) => {
-            machine.isFillingManually = false;
-            machine.currentFill = Math.min(machine.boxCapacity, Math.max(0, parseInt(e.target.value) || 0));
-            machine.lastUpdate = Date.now();
-            updateMachineUI(machine);
-            saveMachines();
-        });
-    }
+    const div = document.createElement('div');
+    div.id = `machine-a-${machine.id}`;
+    div.className = 'machine';
+    
+    div.innerHTML = `
+        <div class="header">
+            <div class="icon ${machine.type}">${machine.type}</div>
+            <div>${machine.name}</div>
+        </div>
+        <label>Aktuelle Füllmenge:<br>
+            <input type="number" class="fillInput" value="${Math.floor(machine.currentFill)}" />
+        </label>
+        <div class="progress-container"><div class="progress-bar"></div></div>
+        <div class="time-info"></div>
+        <div class="shift-info"></div>
+        <div class="machine-actions">
+            <button class="pause" onclick="togglePause(${machine.id})">Anhalten</button>
+            <button class="edit" onclick="openEditModal(${machine.id})">Bearbeiten</button>
+            <button class="forecast" onclick="openForecastModal(${machine.id})">Prognose</button>
+            <button class="delete" onclick="deleteMachine(${machine.id})">Löschen</button>
+        </div>`;
+        
+    container.appendChild(div);
+    
+    // Die alte, duplizierte Logik wird durch diesen sauberen Aufruf ersetzt
+    addFillInputListeners(div, machine);
+}
 
     function renderDetailedMachine(machine, container) {
         const div = document.createElement('div');
@@ -310,13 +312,17 @@
         div.className = 'machine';
         div.dataset.id = machine.id;
         div.innerHTML = `
-            <div class="header"><div class="icon ${machine.type}">${machine.type}</div><div>${machine.name}</div></div>
-            <label>Aktuelle Füllmenge:<br><input type="number" class="fillInput" value="${Math.floor(machine.currentFill)}" disabled></label>
-            <div class="progress-container"><div class="progress-bar"></div></div>
-            <div class="time-info"></div><div class="shift-info"></div>
-            <div class="notification-overlay"><div>Kiste voll!</div><button onclick="acknowledgeBoxFull(${machine.id})">Quittieren</button></div>`;
-        container.appendChild(div);
-    }
+        <div class="header"><div class="icon ${machine.type}">${machine.type}</div><div>${machine.name}</div></div>
+        <label>Aktuelle Füllmenge:<br><input type="number" class="fillInput" value="${Math.floor(machine.currentFill)}"></label>
+        <div class="progress-container"><div class="progress-bar"></div></div>
+        <div class="time-info"></div><div class="shift-info"></div>
+        <div class="notification-overlay"><div>Kiste voll!</div><button onclick="acknowledgeBoxFull(${machine.id})">Quittieren</button></div>`;
+    
+    container.appendChild(div);
+    
+    // Fügt die Logik für das Eingabefeld hinzu
+    addFillInputListeners(div, machine);
+}
 
     function renderCompactMachine(machine, container) {
         const div = document.createElement('div');
@@ -398,32 +404,40 @@
             }
         });
     }
-
+function clearInputs() {
+    document.getElementById('name').value = '';
+    document.getElementById('type').value = 'E'; // Setzt auf den ersten Wert zurück
+    document.getElementById('cavities').value = '1';
+    document.getElementById('cycleTime').value = '10';
+    document.getElementById('boxCapacity').value = '100';
+}
     // --- KERN-FUNKTIONEN ---
     window.addMachine = function() {
-        const name = document.getElementById('name').value.trim();
-        if (!name) return alert('Bitte Namen eingeben.');
-        const newMachine = {
-            id: Date.now(),
-            name: name,
-            type: document.getElementById('type').value,
-            cavities: parseInt(document.getElementById('cavities').value) || 1,
-            cycleTime: parseFloat(document.getElementById('cycleTime').value) || 10,
-            boxCapacity: parseInt(document.getElementById('boxCapacity').value) || 100,
-            currentFill: 0,
-            lastUpdate: Date.now(),
-            boxesCompleted: 0,
-            boxesCompletedShift: 0,
-            isFillingManually: false,
-            lastShiftName: getCurrentShift(new Date()).name,
-            isPaused: false,
-            boxJustBecameFull: false
-        };
-        machines.push(newMachine);
-        saveMachines();
-        renderAllMachines();
-        document.getElementById('add-machine-container').querySelector('form')?.reset(); // Resets form if available
-    }
+    const name = document.getElementById('name').value.trim();
+    if (!name) return alert('Bitte Namen eingeben.');
+    
+    const newMachine = {
+        id: Date.now(),
+        name: name,
+        type: document.getElementById('type').value,
+        cavities: parseInt(document.getElementById('cavities').value) || 1,
+        cycleTime: parseFloat(document.getElementById('cycleTime').value) || 10,
+        boxCapacity: parseInt(document.getElementById('boxCapacity').value) || 100,
+        currentFill: 0,
+        lastUpdate: Date.now(),
+        boxesCompleted: 0,
+        boxesCompletedShift: 0,
+        isFillingManually: false,
+        lastShiftName: getCurrentShift(new Date()).name,
+        isPaused: false,
+        boxJustBecameFull: false
+    };
+
+    machines.push(newMachine);
+    saveMachines();
+    renderAllMachines();
+    clearInputs(); // Ruft die saubere Funktion zum Zurücksetzen auf
+}
 
     window.acknowledgeBoxFull = function(machineId) {
         const machine = machines.find(m => m.id === machineId);
