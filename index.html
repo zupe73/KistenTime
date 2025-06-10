@@ -358,72 +358,85 @@ function addFillInputListeners(div, machine) {
     }
 
     function updateMachineUI(machine) {
-        const now = new Date();
-        const partsPerSecond = machine.cavities / machine.cycleTime;
-        const secondsLeft = machine.isPaused ? Infinity : (machine.boxCapacity - machine.currentFill) / partsPerSecond;
-        const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
-        const currentShift = getCurrentShift(now);
+    const now = new Date();
+    const partsPerSecond = machine.cavities / machine.cycleTime;
+    const secondsLeft = machine.isPaused ? Infinity : (machine.boxCapacity - machine.currentFill) / partsPerSecond;
+    const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
+    const currentShift = getCurrentShift(now);
 
-        ['a', 'o'].forEach(prefix => {
-            const machineDiv = document.getElementById(`machine-${prefix}-${machine.id}`);
-            if (!machineDiv) return;
+    ['a', 'o'].forEach(prefix => {
+        const machineDiv = document.getElementById(`machine-${prefix}-${machine.id}`);
+        if (!machineDiv) return;
 
-            machineDiv.classList.toggle('box-full', !!machine.boxJustBecameFull);
-            machineDiv.classList.toggle('paused', !!machine.isPaused);
-            const notificationOverlay = machineDiv.querySelector('.notification-overlay');
-            if (notificationOverlay) notificationOverlay.style.display = machine.boxJustBecameFull ? 'flex' : 'none';
+        machineDiv.classList.toggle('box-full', !!machine.boxJustBecameFull);
+        machineDiv.classList.toggle('paused', !!machine.isPaused);
+        const notificationOverlay = machineDiv.querySelector('.notification-overlay');
+        if (notificationOverlay) notificationOverlay.style.display = machine.boxJustBecameFull ? 'flex' : 'none';
 
-            if (prefix === 'a' || (prefix === 'o' && viewMode === 'detailed')) {
-                const timeDiv = machineDiv.querySelector('.time-info');
-                if (timeDiv) timeDiv.textContent = machine.isPaused ? 'Pausiert' : `Restzeit: ${formatTime(secondsLeft)} | Voll: ${formatTimeOfDay(new Date(now.getTime() + secondsLeft * 1000))} Uhr`;
-                
-                const progressBar = machineDiv.querySelector('.progress-bar');
-                if (progressBar) {
-                    progressBar.style.width = `${Math.min(100, progressPercent)}%`;
-                    progressBar.className = 'progress-bar ' + (progressPercent < 70 ? 'green' : progressPercent < 90 ? 'orange' : 'red');
-                }
+        if (prefix === 'a' || (prefix === 'o' && viewMode === 'detailed')) {
+            const timeDiv = machineDiv.querySelector('.time-info');
+            if (timeDiv) timeDiv.textContent = machine.isPaused ? 'Pausiert' : `Restzeit: ${formatTime(secondsLeft)} | Voll: ${formatTimeOfDay(new Date(now.getTime() + secondsLeft * 1000))} Uhr`;
+            
+            const progressBar = machineDiv.querySelector('.progress-bar');
+            if (progressBar) {
+                progressBar.style.width = `${Math.min(100, progressPercent)}%`;
+                progressBar.className = 'progress-bar ' + (progressPercent < 70 ? 'green' : progressPercent < 90 ? 'orange' : 'red');
+            }
 
-                const shiftInfoDiv = machineDiv.querySelector('.shift-info');
-                if (shiftInfoDiv) {
-                    const shiftEndTime = getShiftEndTime(now, currentShift);
-                    if (shiftEndTime) {
-                        const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
-                        const totalPartsPossibleInShift = machine.currentFill + (remainingShiftTimeSec * partsPerSecond);
-                        const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor(totalPartsPossibleInShift / machine.boxCapacity);
-                        shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
-                    }
-                }
-
-                const fillInput = machineDiv.querySelector('.fillInput');
-                if (fillInput && !machine.isFillingManually) fillInput.value = Math.floor(machine.currentFill);
-                
-                if (prefix === 'a') {
-                    const pauseButton = machineDiv.querySelector('.machine-actions button');
-                    if (pauseButton) {
-                        pauseButton.textContent = machine.isPaused ? 'Fortsetzen' : 'Anhalten';
-                        pauseButton.className = machine.isPaused ? 'resume' : 'pause';
-                    }
-                }
-            } else if (prefix === 'o' && viewMode === 'compact') {
-                const timeRemainingEl = machineDiv.querySelector('.time-remaining');
-                const timeOfDayEl = machineDiv.querySelector('.time-of-day');
-                if (machine.isPaused) {
-                    if (timeRemainingEl) timeRemainingEl.textContent = '⏸️';
-                    if (timeOfDayEl) timeOfDayEl.textContent = 'Pausiert';
-                } else {
-                    if (timeRemainingEl) timeRemainingEl.textContent = formatTime(secondsLeft);
-                    if (timeOfDayEl) timeOfDayEl.textContent = formatTimeOfDay(new Date(now.getTime() + secondsLeft * 1000));
-                }
-                const fillLevelEl = machineDiv.querySelector('.fill-level');
-                if (fillLevelEl) fillLevelEl.textContent = `${Math.floor(progressPercent)}%`;
-                const circleEl = machineDiv.querySelector('.progress-circle');
-                if (circleEl) {
-                    circleEl.style.setProperty('--progress-color', progressPercent < 70 ? '#4CAF50' : progressPercent < 90 ? '#FF9800' : '#F44336');
-                    circleEl.style.setProperty('--progress-percent', progressPercent);
+            const shiftInfoDiv = machineDiv.querySelector('.shift-info');
+            if (shiftInfoDiv) {
+                const shiftEndTime = getShiftEndTime(now, currentShift);
+                if (shiftEndTime) {
+                    const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
+                    const totalPartsPossibleInShift = machine.currentFill + (remainingShiftTimeSec * partsPerSecond);
+                    const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor(totalPartsPossibleInShift / machine.boxCapacity);
+                    shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
                 }
             }
-        });
-    }
+
+            const fillInput = machineDiv.querySelector('.fillInput');
+            if (fillInput && !machine.isFillingManually) fillInput.value = Math.floor(machine.currentFill);
+            
+            if (prefix === 'a') {
+                const pauseButton = machineDiv.querySelector('.machine-actions button');
+                if (pauseButton) {
+                    pauseButton.textContent = machine.isPaused ? 'Fortsetzen' : 'Anhalten';
+                    pauseButton.className = machine.isPaused ? 'resume' : 'pause';
+                }
+            }
+        } else if (prefix === 'o' && viewMode === 'compact') {
+            const timeRemainingEl = machineDiv.querySelector('.time-remaining');
+            const timeOfDayEl = machineDiv.querySelector('.time-of-day');
+            if (machine.isPaused) {
+                if (timeRemainingEl) timeRemainingEl.textContent = '⏸️';
+                if (timeOfDayEl) timeOfDayEl.textContent = 'Pausiert';
+            } else {
+                if (timeRemainingEl) timeRemainingEl.textContent = formatTime(secondsLeft);
+                if (timeOfDayEl) timeOfDayEl.textContent = formatTimeOfDay(new Date(now.getTime() + secondsLeft * 1000));
+            }
+            const fillLevelEl = machineDiv.querySelector('.fill-level');
+            if (fillLevelEl) fillLevelEl.textContent = `${Math.floor(progressPercent)}%`;
+            
+            const circleEl = machineDiv.querySelector('.progress-circle');
+            if (circleEl) {
+                // --- NEUE LOGIK ZUR FARBBERECHNUNG ---
+                // Die Farbe basiert jetzt auf der Restzeit in Sekunden.
+                let color;
+                if (secondsLeft <= 300) { // Weniger als 5 Minuten
+                    color = '#F44336'; // Rot
+                } else if (secondsLeft <= 900) { // Weniger als 15 Minuten
+                    color = '#FF9800'; // Orange
+                } else {
+                    color = '#4CAF50'; // Grün
+                }
+                // --- ENDE NEUE LOGIK ---
+                
+                circleEl.style.setProperty('--progress-color', color);
+                circleEl.style.setProperty('--progress-percent', progressPercent);
+            }
+        }
+    });
+}
 function clearInputs() {
     document.getElementById('name').value = '';
     document.getElementById('type').value = 'E'; // Setzt auf den ersten Wert zurück
