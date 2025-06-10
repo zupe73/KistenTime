@@ -433,9 +433,11 @@ function updateMachineUI(machine) {
             if (shiftInfoDiv) {
                 const shiftEndTime = getShiftEndTime(now, currentShift);
                 const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
-                const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor((remainingShiftTimeSec * partsPerSecond) / machine.boxCapacity);
-                shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
-            }
+                 const totalPartsPossibleInShift = machine.currentFill + (remainingShiftTimeSec * partsPerSecond);
+                const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor(totalPartsPossibleInShift / machine.boxCapacity);
+
+                shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
+            }
             if (prefix === 'a') {
                 const fillInput = machineDiv.querySelector('.fillInput');
                 if (fillInput && !machine.isFillingManually) {
