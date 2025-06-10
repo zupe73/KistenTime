@@ -359,9 +359,24 @@ function addFillInputListeners(div, machine) {
 
     function updateMachineUI(machine) {
     const now = new Date();
+
+    // --- START: BERECHNUNG DES VISUELLEN FORTSCHRITTS ---
+    // 1. Berechne die Zeit, die seit dem letzten *offiziellen* Zyklus-Update vergangen ist.
+    const visualElapsedSec = (now.getTime() - machine.lastUpdate) / 1000;
+
+    // 2. Berechne die Teile, die in dieser "Zwischenzeit" produziert wurden.
+    // Hier wird NICHT gerundet, um einen flüssigen Fortschritt zu erhalten.
+    const visualAdditionalFill = visualElapsedSec * (machine.cavities / machine.cycleTime);
+
+    // 3. Der VISUELLE Füllstand für die Anzeige ist der letzte offizielle Stand + der Zwischenfortschritt.
+    const visualFill = machine.currentFill + visualAdditionalFill;
+    // --- ENDE: BERECHNUNG DES VISUELLEN FORTSCHRITTS ---
+
+
+    // Alle folgenden Berechnungen für die UI basieren jetzt auf dem flüssigen 'visualFill'.
     const partsPerSecond = machine.cavities / machine.cycleTime;
-    const secondsLeft = machine.isPaused ? Infinity : (machine.boxCapacity - machine.currentFill) / partsPerSecond;
-    const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
+    const secondsLeft = machine.isPaused ? Infinity : (machine.boxCapacity - visualFill) / partsPerSecond;
+    const progressPercent = (visualFill / machine.boxCapacity) * 100;
     const currentShift = getCurrentShift(now);
 
     ['a', 'o'].forEach(prefix => {
@@ -388,14 +403,16 @@ function addFillInputListeners(div, machine) {
                 const shiftEndTime = getShiftEndTime(now, currentShift);
                 if (shiftEndTime) {
                     const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
-                    const totalPartsPossibleInShift = machine.currentFill + (remainingShiftTimeSec * partsPerSecond);
+                    // Wichtig: Auch hier den visuellen Füllstand für die genaue Prognose verwenden!
+                    const totalPartsPossibleInShift = visualFill + (remainingShiftTimeSec * partsPerSecond);
                     const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor(totalPartsPossibleInShift / machine.boxCapacity);
                     shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
                 }
             }
 
             const fillInput = machineDiv.querySelector('.fillInput');
-            if (fillInput && !machine.isFillingManually) fillInput.value = Math.floor(machine.currentFill);
+            // Im Input-Feld runden wir den Wert weiterhin ab, da Nachkommastellen hier verwirren würden.
+            if (fillInput && !machine.isFillingManually) fillInput.value = Math.floor(visualFill);
             
             if (prefix === 'a') {
                 const pauseButton = machineDiv.querySelector('.machine-actions button');
@@ -419,17 +436,10 @@ function addFillInputListeners(div, machine) {
             
             const circleEl = machineDiv.querySelector('.progress-circle');
             if (circleEl) {
-                // --- NEUE LOGIK ZUR FARBBERECHNUNG ---
-                // Die Farbe basiert jetzt auf der Restzeit in Sekunden.
                 let color;
-                if (secondsLeft <= 300) { // Weniger als 5 Minuten
-                    color = '#F44336'; // Rot
-                } else if (secondsLeft <= 900) { // Weniger als 15 Minuten
-                    color = '#FF9800'; // Orange
-                } else {
-                    color = '#4CAF50'; // Grün
-                }
-                // --- ENDE NEUE LOGIK ---
+                if (secondsLeft <= 300) { color = '#F44336'; } 
+                else if (secondsLeft <= 900) { color = '#FF9800'; } 
+                else { color = '#4CAF50'; }
                 
                 circleEl.style.setProperty('--progress-color', color);
                 circleEl.style.setProperty('--progress-percent', progressPercent);
