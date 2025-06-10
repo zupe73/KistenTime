@@ -398,37 +398,56 @@ async function schedulePushNotificationsFor(machine) {
 
 // ERSETZE DEINE AKTUELLE updateMachineUI FUNKTION MIT DIESER KORREKTEN VERSION
 
-// +++ ERSETZE MIT DIESEM NEUEN BLOCK +++
-const shiftInfoDiv = machineDiv.querySelector('.shift-info');
-if (shiftInfoDiv) {
+function updateMachineUI(machine) {
+    const now = new Date();
+    const partsPerSecond = machine.cavities / machine.cycleTime;
+    const secondsLeft = machine.isPaused ? Infinity : (machine.boxCapacity - machine.currentFill) / partsPerSecond;
+    const progressPercent = (machine.currentFill / machine.boxCapacity) * 100;
     const currentShift = getCurrentShift(now);
-    const shiftEndTime = getShiftEndTime(now, currentShift);
-    const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
 
-    // --- NEUE, KORREKTE BERECHNUNG FÜR DIE PROGNOSE ---
-    let boxesRemainingForShift = 0;
-    if (!machine.isPaused && partsPerSecond > 0) {
-        // Für die Prognose nutzen wir den "visuellen" Füllstand für Live-Genauigkeit
-        const visualFill = machine.currentFill + ((now.getTime() - machine.lastUpdate) / 1000) * partsPerSecond;
-        const partsNeeded = machine.boxCapacity - visualFill;
-        const timeToFinishCurrent = partsNeeded / partsPerSecond;
+    ['a', 'o'].forEach(prefix => {
+        const machineDiv = document.getElementById(`machine-${prefix}-${machine.id}`);
+        if (!machineDiv) return;
 
-        // Prüfen, ob die aktuelle Kiste noch in dieser Schicht fertig wird
-        if (timeToFinishCurrent <= remainingShiftTimeSec) {
-            boxesRemainingForShift = 1; // Ja, mindestens diese eine wird fertig
-
-            // Zeit berechnen, die DANACH noch übrig ist
-            const remainingTimeAfter = remainingShiftTimeSec - timeToFinishCurrent;
-
-            // Berechnen, wie viele ZUSÄTZLICHE Kisten in die Restzeit passen
-            const additionalBoxes = Math.floor((remainingTimeAfter * partsPerSecond) / machine.boxCapacity);
-            boxesRemainingForShift += additionalBoxes;
+        // Logik für Admin-Ansicht und detaillierte Übersicht
+        if (prefix === 'a' || (prefix === 'o' && viewMode === 'detailed')) {
+            machineDiv.classList.toggle('paused', !!machine.isPaused);
+            const timeDiv = machineDiv.querySelector('.time-info');
+            if (timeDiv) {
+                if (machine.isPaused) {
+                    timeDiv.textContent = 'Pausiert';
+                } else {
+                    const fillTime = new Date(now.getTime() + secondsLeft * 1000);
+                    timeDiv.textContent = `Restzeit: ${formatTime(secondsLeft)} | Voll: ${formatTimeOfDay(fillTime)} Uhr`;
+                }
+            }
+            const progressBar = machineDiv.querySelector('.progress-bar');
+            if (progressBar) {
+                progressBar.style.width = `${Math.min(100, progressPercent)}%`;
+                progressBar.className = 'progress-bar';
+                if (progressPercent < 70) progressBar.classList.add('green');
+                else if (progressPercent < 90) progressBar.classList.add('orange');
+                else progressBar.classList.add('red');
+            }
+            const shiftInfoDiv = machineDiv.querySelector('.shift-info');
+            if (shiftInfoDiv) {
+                const shiftEndTime = getShiftEndTime(now, currentShift);
+                const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
+                const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor((remainingShiftTimeSec * partsPerSecond) / machine.boxCapacity);
+                shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
+            }
+            if (prefix === 'a') {
+                const fillInput = machineDiv.querySelector('.fillInput');
+                if (fillInput && !machine.isFillingManually) {
+                    fillInput.value = Math.floor(machine.currentFill);
+                }
+                const pauseButton = machineDiv.querySelector('.machine-actions button.pause, .machine-actions button.resume');
+                if(pauseButton){
+                    pauseButton.textContent = machine.isPaused ? 'Fortsetzen' : 'Anhalten';
+                    pauseButton.className = `machine-actions button ${machine.isPaused ? 'resume' : 'pause'}`;
+                }
+            }
         }
-    }
-    // --- ENDE DER NEUEN BERECHNUNG ---
-
-    shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
-}
 
         // Logik für kompakte Übersicht
         if (prefix === 'o' && viewMode === 'compact') {
