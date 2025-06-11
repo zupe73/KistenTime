@@ -59,7 +59,7 @@
 
   /* --- CSS FÜR "KISTE VOLL"-NACHRICHT --- */
   .machine, .machine-compact { position: relative; }
-  .notification-overlay { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(244, 67, 54, 0.9); color: white; z-index: 1; border-radius: 8px; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 1.4em; font-weight: bold; }
+  .notification-overlay { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(244, 67, 54, 0.9); color: white; z-index: 1; border-radius: 0px; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 1.4em; font-weight: bold; }
   .notification-overlay div { margin-bottom: 15px; }
   .notification-overlay button { background-color: #fff; color: #dc3545; border: none; padding: 8px 16px; font-size: 0.8em; font-weight: bold; border-radius: 4px; }
 </style>
@@ -78,6 +78,7 @@
         <div class="view-switcher">
             <button id="view-detailed-btn" class="active">Detailliert</button>
             <button id="view-compact-btn">Kompakt</button>
+            <button id="view-bags-btn">Beutel-Ansicht</button>
         </div>
         <div id="overview-machine-list"></div>
     </div>
@@ -98,6 +99,8 @@
             <label>Kavitätenanzahl:<br /><input type="number" id="cavities" min="1" value="1" /></label>
             <label>Zykluszeit (Sekunden):<br /><input type="number" id="cycleTime" min="0.01" step="0.01" value="10" /></label>
             <label>Kistenfüllmenge:<br /><input type="number" id="boxCapacity" min="1" value="100" /></label>
+          <label>Anzahl Beutel pro Kiste:<br /><input type="number" id="numberOfBags" min="1" value="1" /></label>
+<label>Abräum-Erinnerung (Minuten, 0=aus):<br /><input type="number" id="clearanceReminderMinutes" min="0" value="0" /></label>
             <br>
             <button onclick="addMachine()">Maschine hinzufügen</button>
             <button onclick="initPushNotifications()">Push-Benachrichtigungen aktivieren</button>
@@ -125,6 +128,8 @@
         <label>Kavitätenanzahl:<br /><input type="number" id="editCavities" min="1" /></label>
         <label>Zykluszeit (Sekunden):<br /><input type="number" id="editCycleTime" min="0.01" step="0.01" /></label>
         <label>Kistenfüllmenge:<br /><input type="number" id="editBoxCapacity" min="1" /></label>
+      <label>Anzahl Beutel pro Kiste:<br /><input type="number" id="numberOfBags" min="1" value="1" /></label>
+<label>Abräum-Erinnerung (Minuten, 0=aus):<br /><input type="number" id="clearanceReminderMinutes" min="0" value="0" /></label>
         <label>Kisten in aktueller Schicht:<br /><input type="number" id="editBoxesCompletedShift" min="0" /></label>
         <br>
         <button onclick="saveMachineChanges()">Änderungen speichern</button>
@@ -194,6 +199,8 @@
         machine.boxesCompletedShift = machine.boxesCompletedShift || 0;
         machine.boxJustBecameFull = machine.boxJustBecameFull || false;
         machine.lastShiftName = machine.lastShiftName || 'Frühschicht';
+       machine.numberOfBags = machine.numberOfBags || 1;
+    machine.clearanceReminderMinutes = machine.clearanceReminderMinutes || 0;
     });
 
     // --- SEITEN-NAVIGATION ---
@@ -305,7 +312,7 @@ function addFillInputListeners(div, machine) {
     div.innerHTML = `
         <div class="header">
             <div class="icon ${machine.type}">${machine.type}</div>
-            <div>${machine.name}</div>
+            <div class="machine-name-text">${machine.name}</div>
         </div>
         <label>Aktuelle Füllmenge:<br>
             <input type="number" class="fillInput" value="${Math.floor(machine.currentFill)}" />
@@ -327,35 +334,75 @@ function addFillInputListeners(div, machine) {
 }
 
     function renderDetailedMachine(machine, container) {
-        const div = document.createElement('div');
-        div.id = `machine-o-${machine.id}`;
-        div.className = 'machine';
-        div.dataset.id = machine.id;
-        div.innerHTML = `
-        <div class="header"><div class="icon ${machine.type}">${machine.type}</div><div>${machine.name}</div></div>
-        <label>Aktuelle Füllmenge:<br><input type="number" class="fillInput" value="${Math.floor(machine.currentFill)}"></label>
+    const div = document.createElement('div');
+    div.id = `machine-o-${machine.id}`;
+    div.className = 'machine';
+    div.dataset.id = machine.id;
+    // Hinzugefügt: On-Click für das Detail-Modal in der Detailansicht, falls gewünscht
+    div.setAttribute('onclick', `openMachineDetailModal(${machine.id})`);
+
+    div.innerHTML = `
+        <div class="header">
+            <div class="icon ${machine.type}">${machine.type}</div>
+            <div class="machine-name-text">${machine.name}</div>
+        </div>
+        <label>Aktuelle Füllmenge:<br>
+            <input type="number" class="fillInput" value="${Math.floor(machine.currentFill)}">
+        </label>
         <div class="progress-container"><div class="progress-bar"></div></div>
-        <div class="time-info"></div><div class="shift-info"></div>
-        <div class="notification-overlay"><div>Kiste voll!</div><button onclick="acknowledgeBoxFull(${machine.id})">Quittieren</button></div>`;
+        <div class="time-info"></div>
+        <div class="shift-info"></div>
+        <div class="notification-overlay"><div>Kiste voll!</div><button>Quittieren</button></div>
+    `;
     
     container.appendChild(div);
-    
-    // Fügt die Logik für das Eingabefeld hinzu
+
+    // Fügt die Logik für das manuelle Bearbeiten des Füllstands hinzu
     addFillInputListeners(div, machine);
+
+    // VERFEINERUNG 2: Der Klick wird jetzt hier sicher im JavaScript behandelt
+    const overlayButton = div.querySelector('.notification-overlay button');
+    if (overlayButton) {
+        overlayButton.addEventListener('click', (event) => {
+            // Verhindert, dass der Klick das Detail-Modal öffnet
+            event.stopPropagation(); 
+            acknowledgeBoxFull(machine.id);
+        });
+    }
 }
 
     function renderCompactMachine(machine, container) {
-        const div = document.createElement('div');
-        div.id = `machine-o-${machine.id}`;
-        div.className = 'machine-compact';
-        div.dataset.id = machine.id;
-        div.innerHTML = `
-            <div class="machine-name">${machine.name}</div>
-            <div class="progress-circle"><div class="time-display"><span class="time-remaining"></span><span class="time-of-day"></span></div></div>
-            <div class="fill-level"></div>
-            <div class="notification-overlay"><div>Kiste voll!</div><button onclick="acknowledgeBoxFull(${machine.id})">Quittieren</button></div>`;
-        container.appendChild(div);
+    const div = document.createElement('div');
+    div.id = `machine-o-${machine.id}`;
+    div.className = 'machine-compact';
+    div.dataset.id = machine.id;
+    div.setAttribute('onclick', `openMachineDetailModal(${machine.id})`);
+
+    // Wir ändern hier die Klasse von "machine-name" zu "machine-name-text" für Konsistenz.
+    div.innerHTML = `
+        <div class="machine-name-text">${machine.name}</div>
+        <div class="progress-circle">
+            <div class="time-display">
+                <span class="time-remaining"></span>
+                <span class="time-of-day"></span>
+            </div>
+        </div>
+        <div class="fill-level"></div>
+        <div class="notification-overlay"><div>Kiste voll!</div><button>Quittieren</button></div>
+    `;
+    
+    container.appendChild(div);
+
+    // Der Klick auf den "Quittieren"-Button wird jetzt hier sicher behandelt
+    const overlayButton = div.querySelector('.notification-overlay button');
+    if (overlayButton) {
+        overlayButton.addEventListener('click', (event) => {
+            // Verhindert, dass der Klick das Detail-Modal öffnet
+            event.stopPropagation(); 
+            acknowledgeBoxFull(machine.id);
+        });
     }
+}
 
     function updateMachineUI(machine) {
     const now = new Date();
@@ -466,7 +513,9 @@ function clearInputs() {
         cavities: parseInt(document.getElementById('cavities').value) || 1,
         cycleTime: parseFloat(document.getElementById('cycleTime').value) || 10,
         boxCapacity: parseInt(document.getElementById('boxCapacity').value) || 100,
-        currentFill: 0,
+      numberOfBags: parseInt(document.getElementById('numberOfBags').value) || 1,
+        clearanceReminderMinutes: parseInt(document.getElementById('clearanceReminderMinutes').value) || 0,  
+       currentFill: 0,
         lastUpdate: Date.now(),
         boxesCompleted: 0,
         boxesCompletedShift: 0,
@@ -510,8 +559,11 @@ function clearInputs() {
         document.getElementById('editCycleTime').value = machine.cycleTime;
         document.getElementById('editBoxCapacity').value = machine.boxCapacity;
         document.getElementById('editBoxesCompletedShift').value = machine.boxesCompletedShift;
-        document.getElementById('editMachineModal').style.display = 'block';
-    }
+        document.getElementById('editNumberOfBags').value = machine.numberOfBags;
+    document.getElementById('editClearanceReminderMinutes').value = machine.clearanceReminderMinutes;
+
+    document.getElementById('editMachineModal').style.display = 'block';
+}
 
     window.closeEditModal = function() { document.getElementById('editMachineModal').style.display = 'none'; }
     window.closeForecastModal = function() { document.getElementById('forecastModal').style.display = 'none'; }
@@ -525,6 +577,9 @@ function clearInputs() {
         machine.cavities = parseInt(document.getElementById('editCavities').value) || 1;
         machine.cycleTime = parseFloat(document.getElementById('editCycleTime').value) || 10;
         machine.boxCapacity = parseInt(document.getElementById('editBoxCapacity').value) || 100;
+      machine.numberOfBags = parseInt(document.getElementById('editNumberOfBags').value) || 1;
+    machine.clearanceReminderMinutes = parseInt(document.getElementById('editClearanceReminderMinutes').value) || 0;
+    
         machine.boxesCompletedShift = parseInt(document.getElementById('editBoxesCompletedShift').value) || 0;
         machine.lastUpdate = Date.now();
         saveMachines();
@@ -648,34 +703,66 @@ function clearInputs() {
             });
         }
 
-        const detailedBtn = document.getElementById('view-detailed-btn');
-        const compactBtn = document.getElementById('view-compact-btn');
-        detailedBtn.addEventListener('click', () => {
-            viewMode = 'detailed';
-            detailedBtn.classList.add('active');
-            compactBtn.classList.remove('active');
-            renderAllMachines();
-        });
-        compactBtn.addEventListener('click', () => {
-            viewMode = 'compact';
-            compactBtn.classList.add('active');
-            detailedBtn.classList.remove('active');
-            renderAllMachines();
-        });
-        
-        new Sortable(document.getElementById('overview-machine-list'), {
-            animation: 150,
-            ghostClass: 'sortable-ghost',
-            delay: 200,
-            delayOnTouchOnly: true,
-            onEnd: function (evt) {
-                machines.splice(evt.newIndex, 0, machines.splice(evt.oldIndex, 1)[0]);
-                saveMachines();
-            }
-        });
+         const detailedBtn = document.getElementById('view-detailed-btn');
+    const compactBtn = document.getElementById('view-compact-btn');
+    const bagsBtn = document.getElementById('view-bags-btn');
+    const allViewBtns = [detailedBtn, compactBtn, bagsBtn];
 
+    detailedBtn.addEventListener('click', () => {
+        if (viewMode === 'detailed') return; // Nichts tun, wenn schon aktiv
+        viewMode = 'detailed';
+        allViewBtns.forEach(btn => btn.classList.remove('active')); // Alle deaktivieren
+        detailedBtn.classList.add('active'); // Nur diesen aktivieren
         renderAllMachines();
-        showPage('overview-page');
+    });
+
+    compactBtn.addEventListener('click', () => {
+        if (viewMode === 'compact') return;
+        viewMode = 'compact';
+        allViewBtns.forEach(btn => btn.classList.remove('active'));
+        compactBtn.classList.add('active');
+        renderAllMachines();
+    });
+
+    bagsBtn.addEventListener('click', () => {
+        if (viewMode === 'bags') return;
+        viewMode = 'bags';
+        allViewBtns.forEach(btn => btn.classList.remove('active'));
+        bagsBtn.classList.add('active');
+        renderAllMachines();
+    });
+    // =================================================================================
+    // ENDE DES BUTTON-BLOCKS
+    // =================================================================================
+
+    // Audio-Kontext freischalten (falls du diesen Code-Block schon hast)
+    function unlockAudio() {
+        if (audio && audio.paused) {
+            audio.play().catch(() => {});
+            audio.pause();
+        }
+        document.body.removeEventListener('click', unlockAudio);
+        document.body.removeEventListener('touchstart', unlockAudio);
+        console.log("Audio-Kontext durch Benutzerinteraktion freigeschaltet.");
+    }
+    document.body.addEventListener('click', unlockAudio);
+    document.body.addEventListener('touchstart', unlockAudio);
+
+
+    new Sortable(document.getElementById('overview-machine-list'), {
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        delay: 200,
+        delayOnTouchOnly: true,
+        onEnd: function (evt) {
+            machines.splice(evt.newIndex, 0, machines.splice(evt.oldIndex, 1)[0]);
+            saveMachines();
+        }
+    });
+
+    renderAllMachines();
+    showPage('overview-page');
+});
     });
 </script>
 </body>
