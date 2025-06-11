@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>KistenTimer v5 - Korrigierte Version</title>
+<title>KistenTimer v5 - Final</title>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <style>
   :root { --primary-color: #007bff; --primary-hover: #0056b3; }
   body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f4f4; color: #333; }
   .content-wrapper { padding: 20px; }
   h1, h2 { color: #0056b3; }
-  .machine { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease; cursor: grab; }
-  .machine:active { cursor: grabbing; }
-  .machine.sortable-ghost { opacity: 0.4; background: #cce5ff; }
+  .machine, .machine-compact { position: relative; background-color: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease; cursor: grab; }
+  .machine:active, .machine-compact:active { cursor: grabbing; }
+  .machine.sortable-ghost, .machine-compact.sortable-ghost { opacity: 0.4; background: #cce5ff; }
   .machine.box-full, .machine-compact.box-full { border: 2px solid #F44336; box-shadow: 0 0 15px rgba(244, 67, 54, 0.7); }
   .header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
   .icon { font-weight: bold; font-size: 20px; width: 30px; height: 30px; border-radius: 50%; color: white; text-align: center; line-height: 30px; display: flex; align-items: center; justify-content: center; }
@@ -42,26 +42,23 @@
   nav button.active { background-color: #fff; color: #0056b3; font-weight: bold; }
   .page { display: none; }
   .page.active { display: block; }
-  
   .view-switcher { margin-bottom: 20px; }
   .view-switcher button { padding: 8px 12px; border: 1px solid #ccc; background-color: #f8f9fa; color: #333; cursor: pointer; }
   .view-switcher button.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
   #overview-machine-list.compact-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-  
-  .machine-compact { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-  .machine-compact .machine-name { font-weight: bold; font-size: 0.9em; margin-bottom: 8px; }
+  .machine-compact { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+  .machine-compact:hover { transform: translateY(-3px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+  .machine-compact .machine-name-text { font-weight: bold; font-size: 0.9em; margin-bottom: 8px; }
   .progress-circle { width: 80px; height: 80px; border-radius: 50%; display: flex; justify-content: center; align-items: center; position: relative; background: conic-gradient( var(--progress-color, #4CAF50) calc(var(--progress-percent, 0) * 1%), #e9ecef 0 ); }
   .progress-circle::before { content: ''; position: absolute; width: 66px; height: 66px; background: #fff; border-radius: 50%; }
   .progress-circle .time-display { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
   .progress-circle .time-remaining { font-size: 0.95em; font-weight: bold; color: #333; }
   .progress-circle .time-of-day { font-size: 0.75em; font-weight: normal; color: #555; }
   .machine-compact .fill-level { margin-top: 8px; font-size: 0.9em; font-weight: bold; color: #555; }
-
-  /* --- CSS FÜR "KISTE VOLL"-NACHRICHT --- */
-  .machine, .machine-compact { position: relative; }
-  .notification-overlay { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(244, 67, 54, 0.9); color: white; z-index: 1; border-radius: 0px; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 1.4em; font-weight: bold; }
+  .notification-overlay { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(244, 67, 54, 0.9); color: white; z-index: 1; border-radius: 8px; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 1.4em; font-weight: bold; }
   .notification-overlay div { margin-bottom: 15px; }
   .notification-overlay button { background-color: #fff; color: #dc3545; border: none; padding: 8px 16px; font-size: 0.8em; font-weight: bold; border-radius: 4px; }
+  #shift-summary-container { text-align: center; padding: 12px; margin-bottom: 20px; background-color: #e9ecef; border: 1px solid #dee2e6; border-radius: 8px; font-size: 1.1em; font-weight: 500; }
 </style>
 <link rel="manifest" href="./manifest.json" />
 </head>
@@ -75,6 +72,10 @@
 <div id="overview-page" class="page active">
     <div class="content-wrapper">
         <h1>Maschinenübersicht</h1>
+        <div id="shift-summary-container">
+            Aktuelle Schicht: <strong id="shift-summary-name">---</strong> |
+            Verbleibende Kisten (Gesamt): <strong id="shift-summary-total">0</strong>
+        </div>
         <div class="view-switcher">
             <button id="view-detailed-btn" class="active">Detailliert</button>
             <button id="view-compact-btn">Kompakt</button>
@@ -99,8 +100,8 @@
             <label>Kavitätenanzahl:<br /><input type="number" id="cavities" min="1" value="1" /></label>
             <label>Zykluszeit (Sekunden):<br /><input type="number" id="cycleTime" min="0.01" step="0.01" value="10" /></label>
             <label>Kistenfüllmenge:<br /><input type="number" id="boxCapacity" min="1" value="100" /></label>
-          <label>Anzahl Beutel pro Kiste:<br /><input type="number" id="numberOfBags" min="1" value="1" /></label>
-<label>Abräum-Erinnerung (Minuten, 0=aus):<br /><input type="number" id="clearanceReminderMinutes" min="0" value="0" /></label>
+            <label>Anzahl Beutel pro Kiste:<br /><input type="number" id="numberOfBags" min="1" value="1" /></label>
+            <label>Abräum-Erinnerung (Minuten, 0=aus):<br /><input type="number" id="clearanceReminderMinutes" min="0" value="0" /></label>
             <br>
             <button onclick="addMachine()">Maschine hinzufügen</button>
             <button onclick="initPushNotifications()">Push-Benachrichtigungen aktivieren</button>
@@ -128,8 +129,8 @@
         <label>Kavitätenanzahl:<br /><input type="number" id="editCavities" min="1" /></label>
         <label>Zykluszeit (Sekunden):<br /><input type="number" id="editCycleTime" min="0.01" step="0.01" /></label>
         <label>Kistenfüllmenge:<br /><input type="number" id="editBoxCapacity" min="1" /></label>
-      <label>Anzahl Beutel pro Kiste:<br /><input type="number" id="numberOfBags" min="1" value="1" /></label>
-<label>Abräum-Erinnerung (Minuten, 0=aus):<br /><input type="number" id="clearanceReminderMinutes" min="0" value="0" /></label>
+        <label>Anzahl Beutel pro Kiste:<br /><input type="number" id="editNumberOfBags" min="1" /></label>
+        <label>Abräum-Erinnerung (Minuten, 0=aus):<br /><input type="number" id="editClearanceReminderMinutes" min="0" /></label>
         <label>Kisten in aktueller Schicht:<br /><input type="number" id="editBoxesCompletedShift" min="0" /></label>
         <br>
         <button onclick="saveMachineChanges()">Änderungen speichern</button>
@@ -153,6 +154,13 @@
     </div>
 </div>
 
+<div id="machineDetailModal" class="modal">
+    <div class="modal-content">
+        <span class="close-button" onclick="closeMachineDetailModal()">&times;</span>
+        <div id="machineDetailContent"></div>
+    </div>
+</div>
+
 <script type="module">
     // --- FIREBASE INITIALISIERUNG ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
@@ -170,9 +178,7 @@
     try {
         const app = initializeApp(firebaseConfig);
         messaging = getMessaging(app);
-    } catch (e) {
-        console.error("Firebase konnte nicht initialisiert werden.", e);
-    }
+    } catch (e) { console.error("Firebase konnte nicht initialisiert werden.", e); }
 
     // --- GLOBALE VARIABLEN & KONSTANTEN ---
     let viewMode = 'detailed';
@@ -186,9 +192,7 @@
     let audio;
     try {
        audio = new Audio('./assets/beep.mp3');
-    } catch(e) {
-        console.warn("Audio konnte nicht erstellt werden.");
-    }
+    } catch(e) { console.warn("Audio konnte nicht erstellt werden."); }
 
     // --- DATENMIGRATION BEIM START ---
     machines.forEach(machine => {
@@ -241,9 +245,7 @@
         const functionUrl = 'https://schedulenotification-xxhao7ipkq-uc.a.run.app';
         try {
             await fetch(functionUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: pushToken, machineName: machine.name, secondsUntilFull: scheduledDelaySeconds }), keepalive: true });
-        } catch (error) {
-            console.error("Fehler bei der Planungs-Anfrage:", error);
-        }
+        } catch (error) { console.error("Fehler bei der Planungs-Anfrage:", error); }
     }
 
     // --- HELFERFUNKTION FÜR EINGABEFELDER ---
@@ -271,7 +273,7 @@
         machines.forEach(machine => {
             renderAdminMachine(machine, adminContainer);
             if (viewMode === 'bags') {
-                renderDetailedMachine(machine, overviewContainer); // Beutel-Ansicht nutzt das Detail-Layout
+                renderDetailedMachine(machine, overviewContainer);
             } else if (viewMode === 'compact') {
                 renderCompactMachine(machine, overviewContainer);
             } else {
@@ -352,15 +354,16 @@
     
     function updateMachineUI(machine) {
         const now = new Date();
+        const officialFill = machine.currentFill;
         let capacityForCalc = machine.boxCapacity;
-        let fillForCalc = machine.currentFill;
+        let fillForCalc = officialFill;
         let titleSuffix = "";
 
         if ((viewMode === 'bags' || (document.getElementById('machine-modal-' + machine.id) && machine.numberOfBags > 1)) && machine.numberOfBags > 1) {
             const bagCapacity = machine.boxCapacity / machine.numberOfBags;
-            const currentBagNumber = Math.min(machine.numberOfBags, Math.floor(machine.currentFill / bagCapacity) + 1);
-            fillForCalc = machine.currentFill % bagCapacity;
-            if (fillForCalc === 0 && machine.currentFill > 0) {
+            const currentBagNumber = Math.min(machine.numberOfBags, Math.floor(officialFill / bagCapacity) + 1);
+            fillForCalc = officialFill % bagCapacity;
+            if (fillForCalc === 0 && officialFill > 0) {
                 fillForCalc = bagCapacity;
             }
             capacityForCalc = bagCapacity;
@@ -405,7 +408,8 @@
                         const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
                         const totalPartsPossibleInShift = visualFill + (remainingShiftTimeSec * partsPerSecond);
                         const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor(totalPartsPossibleInShift / capacityForCalc);
-                        shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} ${(viewMode === 'bags' ? 'Beutel' : 'Kisten')} bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
+                        const unit = (viewMode === 'bags' || prefix === 'modal') && machine.numberOfBags > 1 ? 'Beutel' : 'Kisten';
+                        shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} ${unit} bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
                     }
                 }
 
@@ -413,7 +417,7 @@
                 if (fillInput && !machine.isFillingManually) fillInput.value = Math.floor(visualFill);
                 
                 if (prefix === 'a') {
-                    const pauseButton = machineDiv.querySelector('.machine-actions button');
+                    const pauseButton = machineDiv.querySelector('.machine-actions .pause, .machine-actions .resume');
                     if (pauseButton) {
                         pauseButton.textContent = machine.isPaused ? 'Fortsetzen' : 'Anhalten';
                         pauseButton.className = machine.isPaused ? 'resume' : 'pause';
@@ -555,7 +559,8 @@
     }
 
     window.deleteMachine = function(machineId) {
-        if (confirm(`Soll die Maschine '${machines.find(m=>m.id===machineId).name}' wirklich gelöscht werden?`)) {
+        const machineName = machines.find(m => m.id === machineId)?.name || 'Diese Maschine';
+        if (confirm(`Soll '${machineName}' wirklich gelöscht werden?`)) {
             machines = machines.filter(m => m.id !== machineId);
             saveMachines();
             renderAllMachines();
@@ -566,12 +571,36 @@
     window.openForecastModal = function(machineId) {
         document.getElementById('forecastMachineId').value = machineId;
         document.getElementById('forecastResult').innerHTML = '';
-        ['forecastTotalBoxes', 'forecastCurrentBoxNumber', 'forecastCurrentFill'].forEach(id => document.getElementById(id).value = document.getElementById(id).defaultValue);
         document.getElementById('forecastModal').style.display = 'block';
     }
 
     window.calculateForecast = function() {
-        // ... (unverändert) ...
+        const machineId = parseInt(document.getElementById('forecastMachineId').value);
+        const machine = machines.find(m => m.id === machineId);
+        if (!machine) return;
+        const totalBoxes = parseInt(document.getElementById('forecastTotalBoxes').value) || 0;
+        const currentBoxNumber = parseInt(document.getElementById('forecastCurrentBoxNumber').value) || 1;
+        const currentFill = parseInt(document.getElementById('forecastCurrentFill').value) || 0;
+        const runsOnWeekend = document.getElementById('forecastRunsOnWeekend').checked;
+        if (totalBoxes <= 0 || currentBoxNumber > totalBoxes) return alert('Ungültige Auftragsdaten.');
+
+        const partsPerSecond = machine.cavities / machine.cycleTime;
+        let secondsToProduce = ((machine.boxCapacity - currentFill) / partsPerSecond) + ((totalBoxes - currentBoxNumber) * machine.boxCapacity) / partsPerSecond;
+        
+        let finalCompletionDate = new Date();
+        while (secondsToProduce > 0) {
+            const currentDay = finalCompletionDate.getDay();
+            const currentHour = finalCompletionDate.getHours();
+            let isPauseHour = !runsOnWeekend && ((currentDay === 6 && currentHour >= 4) || currentDay === 0 || (currentDay === 1 && currentHour < 7));
+            if (isPauseHour) {
+                finalCompletionDate.setHours(finalCompletionDate.getHours() + 1);
+                continue;
+            }
+            const timeStep = Math.min(secondsToProduce, 3600);
+            secondsToProduce -= timeStep;
+            finalCompletionDate.setSeconds(finalCompletionDate.getSeconds() + timeStep);
+        }
+        document.getElementById('forecastResult').innerHTML = `Voraussichtlich fertig am:<br><strong>${finalCompletionDate.toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' })} Uhr</strong>`;
     }
 
     // --- HELPER-FUNKTIONEN ---
@@ -581,11 +610,13 @@
             const startTotalMinutes = shift.startHour * 60 + shift.startMinute;
             const endTotalMinutes = shift.endHour * 60 + shift.endMinute;
             return shift.overnight ? (currentTotalMinutes >= startTotalMinutes || currentTotalMinutes < endTotalMinutes) : (currentTotalMinutes >= startTotalMinutes && currentTotalMinutes < endTotalMinutes);
-        }) || { name: "Außerhalb Schicht", endHour: -1, endMinute: -1 };
+        }) || { name: "Außerhalb Schicht" };
     }
 
     function getShiftEndTime(currentDate, shift) {
-        if (!shift || typeof shift.endHour !== 'number') return new Date(currentDate);
+        if (!shift || typeof shift.endHour !== 'number') {
+            return new Date(currentDate);
+        }
         const endDate = new Date(currentDate);
         endDate.setHours(shift.endHour, shift.endMinute || 0, 0, 0);
         if (endDate <= currentDate) endDate.setDate(endDate.getDate() + 1);
@@ -608,11 +639,21 @@
     }
     
     // --- HAUPT-UPDATE-SCHLEIFE ---
+    function updateShiftSummaryUI(total, shift) {
+        const nameEl = document.getElementById('shift-summary-name');
+        const totalEl = document.getElementById('shift-summary-total');
+        if (nameEl && totalEl) {
+            nameEl.textContent = shift.name;
+            totalEl.textContent = total;
+        }
+    }
+
     setInterval(() => {
         const now = Date.now();
         const currentDate = new Date(now);
         const currentShift = getCurrentShift(currentDate);
         let grandTotalRemainingBoxes = 0;
+        
         machines.forEach(machine => {
             if (!machine.isPaused && !machine.isFillingManually) {
                 const elapsedSec = (now - machine.lastUpdate) / 1000;
@@ -630,10 +671,11 @@
                     machine.boxJustBecameFull = true;
                 }
                 if (wasBoxJustFilled) {
-                    if (audio && typeof audio.play === 'function') audio.play().catch(e => console.warn("Audio-Wiedergabe fehlgeschlagen:", e));
+                    if (audio && typeof audio.play === 'function') audio.play().catch(e=>console.warn("Audio-Wiedergabe fehlgeschlagen:", e));
                     schedulePushNotificationsFor(machine);
                 }
             }
+            
             if (!machine.isPaused) {
                 const visualElapsedSec = (now - machine.lastUpdate) / 1000;
                 const visualAdditionalFill = visualElapsedSec * (machine.cavities / machine.cycleTime);
@@ -647,6 +689,7 @@
             }
             updateMachineUI(machine);
         });
+        
         updateShiftSummaryUI(grandTotalRemainingBoxes, currentShift);
         saveMachines();
     }, 1000);
@@ -661,67 +704,49 @@
             });
         }
 
-         const detailedBtn = document.getElementById('view-detailed-btn');
-    const compactBtn = document.getElementById('view-compact-btn');
-    const bagsBtn = document.getElementById('view-bags-btn');
-    const allViewBtns = [detailedBtn, compactBtn, bagsBtn];
-
-    detailedBtn.addEventListener('click', () => {
-        if (viewMode === 'detailed') return; // Nichts tun, wenn schon aktiv
-        viewMode = 'detailed';
-        allViewBtns.forEach(btn => btn.classList.remove('active')); // Alle deaktivieren
-        detailedBtn.classList.add('active'); // Nur diesen aktivieren
-        renderAllMachines();
-    });
-
-    compactBtn.addEventListener('click', () => {
-        if (viewMode === 'compact') return;
-        viewMode = 'compact';
-        allViewBtns.forEach(btn => btn.classList.remove('active'));
-        compactBtn.classList.add('active');
-        renderAllMachines();
-    });
-
-    bagsBtn.addEventListener('click', () => {
-        if (viewMode === 'bags') return;
-        viewMode = 'bags';
-        allViewBtns.forEach(btn => btn.classList.remove('active'));
-        bagsBtn.classList.add('active');
-        renderAllMachines();
-    });
-    // =================================================================================
-    // ENDE DES BUTTON-BLOCKS
-    // =================================================================================
-
-    // Audio-Kontext freischalten (falls du diesen Code-Block schon hast)
-    function unlockAudio() {
-        if (audio && audio.paused) {
-            audio.play().catch(() => {});
-            audio.pause();
+        function unlockAudio() {
+            if (audio && audio.paused) {
+                audio.play().catch(() => {});
+                audio.pause();
+            }
+            document.body.removeEventListener('click', unlockAudio);
+            document.body.removeEventListener('touchstart', unlockAudio);
         }
-        document.body.removeEventListener('click', unlockAudio);
-        document.body.removeEventListener('touchstart', unlockAudio);
-        console.log("Audio-Kontext durch Benutzerinteraktion freigeschaltet.");
-    }
-    document.body.addEventListener('click', unlockAudio);
-    document.body.addEventListener('touchstart', unlockAudio);
+        document.body.addEventListener('click', unlockAudio);
+        document.body.addEventListener('touchstart', unlockAudio);
 
+        const detailedBtn = document.getElementById('view-detailed-btn');
+        const compactBtn = document.getElementById('view-compact-btn');
+        const bagsBtn = document.getElementById('view-bags-btn');
+        const allViewBtns = [detailedBtn, compactBtn, bagsBtn];
 
-    new Sortable(document.getElementById('overview-machine-list'), {
-        animation: 150,
-        ghostClass: 'sortable-ghost',
-        delay: 200,
-        delayOnTouchOnly: true,
-        onEnd: function (evt) {
-            machines.splice(evt.newIndex, 0, machines.splice(evt.oldIndex, 1)[0]);
-            saveMachines();
+        function switchView(newMode, clickedBtn) {
+            if (viewMode === newMode) return;
+            viewMode = newMode;
+            allViewBtns.forEach(btn => btn.classList.remove('active'));
+            clickedBtn.classList.add('active');
+            renderAllMachines();
         }
-    });
 
-    renderAllMachines();
-    showPage('overview-page');
-});
-    
+        detailedBtn.addEventListener('click', () => switchView('detailed', detailedBtn));
+        compactBtn.addEventListener('click', () => switchView('compact', compactBtn));
+        bagsBtn.addEventListener('click', () => switchView('bags', bagsBtn));
+        
+        new Sortable(document.getElementById('overview-machine-list'), {
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            delay: 200,
+            delayOnTouchOnly: true,
+            onEnd: function (evt) {
+                machines.splice(evt.newIndex, 0, machines.splice(evt.oldIndex, 1)[0]);
+                saveMachines();
+            }
+        });
+
+        renderAllMachines();
+        showPage('overview-page');
+    });
 </script>
+
 </body>
 </html>
