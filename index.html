@@ -43,8 +43,22 @@
   nav button.active { background-color: #fff; color: #0056b3; font-weight: bold; }
   .page { display: none; }
   .page.active { display: block; }
-  .view-switcher { margin-bottom: 20px; }
-  .view-switcher button { padding: 6px 10px; border: 1px solid #ccc; background-color: #f8f9fa; color: #333; cursor: pointer; }
+    .view-switcher { 
+    margin-bottom: 20px; 
+    display: flex; 
+    gap: 5px;      
+  }
+  .view-switcher button { 
+    padding: 6px 10px;
+    font-size: 14px;   
+    border: 1px solid #ccc; 
+    background-color: #f8f9fa; 
+    color: #333; 
+    cursor: pointer;
+    flex-grow: 1; 
+    text-align: center; 
+  }
+
   .view-switcher button.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
   #overview-machine-list.compact-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
   .machine-compact { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; }
