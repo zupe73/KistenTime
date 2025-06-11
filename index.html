@@ -539,111 +539,141 @@ window.calculateForecast = function() {
         overlay.addEventListener('click', (e) => e.stopPropagation());
     }
     
-   function updateMachineUI(machine) {
-    const now = new Date();
-    
-    // Basis-Berechnung für den visuellen Fortschritt
-    const visualElapsedSec = (now.getTime() - machine.lastUpdate) / 1000;
-    const visualAdditionalFill = visualElapsedSec * (machine.cavities / machine.cycleTime);
-    const visualFill = machine.currentFill + visualAdditionalFill;
+    function updateMachineUI(machine) {
+        const now = new Date();
+        const partsPerSecond = machine.cavities / machine.cycleTime;
+        const officialFill = machine.currentFill;
+        let capacityForCalc = machine.boxCapacity;
+        let fillForCalc = officialFill;
+        let titleSuffix = "";
 
-    // Logik zur Bestimmung der Werte basierend auf der Ansicht (Beutel oder Kiste)
-    let capacityForCalc = machine.boxCapacity;
-    let fillForCalc = visualFill; // Wir nutzen den flüssigen visuellen Wert für die Anzeige
-    let titleSuffix = ""; 
-
-    if (viewMode === 'bags' && machine.numberOfBags > 1) {
-        const bagCapacity = machine.boxCapacity / machine.numberOfBags;
-        const currentFillInBox = visualFill;
-        const currentBagNumber = Math.min(machine.numberOfBags, Math.floor(currentFillInBox / bagCapacity) + 1);
+        const isModal = !!document.getElementById(`machine-modal-${machine.id}`);
+        const isBagsRelevant = (viewMode === 'bags' || (isModal && machine.numberOfBags > 1)) && machine.numberOfBags > 1;
         
-        fillForCalc = currentFillInBox % bagCapacity;
-        if (fillForCalc === 0 && currentFillInBox > 0) {
-            fillForCalc = bagCapacity;
+        if (machine.numberOfBags > 1) {
+            const bagCapacity = machine.boxCapacity / machine.numberOfBags;
+            const currentBagNumber = Math.min(machine.numberOfBags, Math.floor(officialFill / bagCapacity) + 1);
+            titleSuffix = ` (Beutel ${currentBagNumber}/${machine.numberOfBags})`;
+            if(isBagsRelevant) {
+                fillForCalc = officialFill % bagCapacity;
+                if (fillForCalc === 0 && officialFill > 0) fillForCalc = bagCapacity;
+                capacityForCalc = bagCapacity;
+            }
         }
+        
+        const visualElapsedSec = (now.getTime() - machine.lastUpdate) / 1000;
+        const visualAdditionalFill = visualElapsedSec * partsPerSecond;
+        const visualFill = fillForCalc + visualAdditionalFill;
 
-        capacityForCalc = bagCapacity;
-        titleSuffix = ` (Beutel ${currentBagNumber}/${machine.numberOfBags})`;
-    }
+        const secondsLeft = machine.isPaused ? Infinity : (capacityForCalc - visualFill) / partsPerSecond;
+        const progressPercent = (visualFill / capacityForCalc) * 100;
+        const currentShift = getCurrentShift(now);
 
-    const partsPerSecond = machine.cavities / machine.cycleTime;
-    const secondsLeft = machine.isPaused ? Infinity : (capacityForCalc - fillForCalc) / partsPerSecond;
-    const progressPercent = (fillForCalc / capacityForCalc) * 100;
-    const currentShift = getCurrentShift(now);
+        ['a', 'o', 'modal'].forEach(prefix => {
+            const machineDiv = document.getElementById(`machine-${prefix}-${machine.id}`);
+            if (!machineDiv) return;
+            const nameDiv = machineDiv.querySelector('.machine-name-text');
+            if (nameDiv) nameDiv.textContent = machine.name + (prefix === 'a' ? '' : titleSuffix);
 
-    // ==================== KORREKTUR 1: 'modal' als Ziel hinzufügen ====================
-    ['a', 'o', 'modal'].forEach(prefix => {
-        const machineDiv = document.getElementById(`machine-${prefix}-${machine.id}`);
-        if (!machineDiv) return;
-
-        const nameDiv = machineDiv.querySelector('.machine-name-text');
-        if(nameDiv) nameDiv.textContent = machine.name + (prefix === 'a' ? '' : titleSuffix);
-
-        machineDiv.classList.toggle('box-full', !!machine.boxJustBecameFull);
-        machineDiv.classList.toggle('paused', !!machine.isPaused);
-        const notificationOverlay = machineDiv.querySelector('.notification-overlay');
-        if (notificationOverlay) notificationOverlay.style.display = machine.boxJustBecameFull ? 'flex' : 'none';
-
-        // ============ KORREKTUR 2: Logik für 'modal' explizit einschließen ===========
-        if (prefix === 'a' || (prefix === 'o' && viewMode === 'detailed') || prefix === 'modal' || (prefix === 'o' && viewMode === 'bags')) {
-            const timeDiv = machineDiv.querySelector('.time-info');
-            if (timeDiv) timeDiv.textContent = machine.isPaused ? 'Pausiert' : `Restzeit: ${formatTime(secondsLeft)} | Voll: ${formatTimeOfDay(new Date(now.getTime() + secondsLeft * 1000))} Uhr`;
-            
-            const progressBar = machineDiv.querySelector('.progress-bar');
-            if (progressBar) {
-                progressBar.style.width = `${Math.min(100, progressPercent)}%`;
-                progressBar.className = 'progress-bar ' + (progressPercent < 70 ? 'green' : progressPercent < 90 ? 'orange' : 'red');
-            }
-
-            const shiftInfoDiv = machineDiv.querySelector('.shift-info');
-            if (shiftInfoDiv) {
-                const shiftEndTime = getShiftEndTime(now, currentShift);
-                if (shiftEndTime) {
-                    const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
-                    // Die Prognose der Restkisten in der Schicht basiert immer auf der ganzen Kiste
-                    const totalPartsPossibleInShift = (machine.currentFill + visualAdditionalFill) + (remainingShiftTimeSec * partsPerSecond);
-                    const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor(totalPartsPossibleInShift / machine.boxCapacity);
-                    shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
+            const notificationOverlay = machineDiv.querySelector('.notification-overlay');
+            if (notificationOverlay) {
+                const notifText = notificationOverlay.querySelector('.notification-text');
+                const notifButton = notificationOverlay.querySelector('.notification-button');
+                let alertActive = false;
+                if (machine.clearanceReminderDue) {
+                    alertActive = true;
+                    notificationOverlay.style.display = 'flex';
+                    notificationOverlay.className = 'notification-overlay clearance-msg';
+                    notifText.textContent = 'Abräumen!';
+                    notifButton.textContent = 'Quittieren';
+                    notifButton.onclick = (e) => resetClearanceReminder(machine.id, e);
+                } else if (machine.boxJustBecameFull) {
+                    alertActive = true;
+                    notificationOverlay.style.display = 'flex';
+                    notificationOverlay.className = 'notification-overlay box-full-msg';
+                    notifText.textContent = 'Kiste voll!';
+                    notifButton.textContent = 'Quittieren';
+                    notifButton.onclick = (e) => acknowledgeBoxFull(machine.id, e);
+                } else if (machine.bagJustBecameFull) {
+                    alertActive = true;
+                    notificationOverlay.style.display = 'flex';
+                    notificationOverlay.className = 'notification-overlay bag-full-msg';
+                    notifText.textContent = 'Beutel voll!';
+                    notifButton.textContent = 'Quittieren';
+                    notifButton.onclick = (e) => acknowledgeBagFull(machine.id, e);
+                } else {
+                    notificationOverlay.style.display = 'none';
                 }
+                machineDiv.classList.toggle('alert-active', alertActive);
             }
+            machineDiv.classList.toggle('paused', !!machine.isPaused);
 
-            const fillInput = machineDiv.querySelector('.fillInput');
-            if (fillInput && !machine.isFillingManually) fillInput.value = Math.floor(fillForCalc);
-            
-            if (prefix === 'a') {
-                const pauseButton = machineDiv.querySelector('.machine-actions button');
-                if (pauseButton) {
-                    pauseButton.textContent = machine.isPaused ? 'Fortsetzen' : 'Anhalten';
-                    pauseButton.className = machine.isPaused ? 'resume' : 'pause';
-                }
-            }
-        } else if (prefix === 'o' && viewMode === 'compact') {
-            // Kompakt-Ansicht bleibt unverändert
-            const timeRemainingEl = machineDiv.querySelector('.time-remaining');
-            const timeOfDayEl = machineDiv.querySelector('.time-of-day');
-            if (machine.isPaused) {
-                if (timeRemainingEl) timeRemainingEl.textContent = '⏸️';
-                if (timeOfDayEl) timeOfDayEl.textContent = 'Pausiert';
-            } else {
-                if (timeRemainingEl) timeRemainingEl.textContent = formatTime(secondsLeft);
-                if (timeOfDayEl) timeOfDayEl.textContent = formatTimeOfDay(new Date(now.getTime() + secondsLeft * 1000));
-            }
-            const fillLevelEl = machineDiv.querySelector('.fill-level');
-            if (fillLevelEl) fillLevelEl.textContent = `${Math.floor(progressPercent)}%`;
-            
-            const circleEl = machineDiv.querySelector('.progress-circle');
-            if (circleEl) {
-                let color;
-                if (secondsLeft <= 300) { color = '#F44336'; } 
-                else if (secondsLeft <= 900) { color = '#FF9800'; } 
-                else { color = '#4CAF50'; }
+            if (prefix === 'a' || prefix === 'modal' || (prefix === 'o' && viewMode !== 'compact')) {
+                const timeDiv = machineDiv.querySelector('.time-info');
+                if (timeDiv) timeDiv.textContent = machine.isPaused ? 'Pausiert' : `Restzeit: ${formatTime(secondsLeft)} | Voll: ${formatTimeOfDay(new Date(now.getTime() + secondsLeft * 1000))} Uhr`;
                 
-                circleEl.style.setProperty('--progress-color', color);
-                circleEl.style.setProperty('--progress-percent', progressPercent);
+                const progressBar = machineDiv.querySelector('.progress-bar');
+                if (progressBar) {
+                    progressBar.style.width = `${Math.min(100, progressPercent)}%`;
+                    progressBar.className = 'progress-bar ' + (progressPercent < 70 ? 'green' : progressPercent < 90 ? 'orange' : 'red');
+                }
+
+                const shiftInfoDiv = machineDiv.querySelector('.shift-info');
+                if (shiftInfoDiv) {
+                    const shiftEndTime = getShiftEndTime(now, currentShift);
+                    const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
+                    const totalPartsInShift = machine.currentFill + (remainingShiftTimeSec * partsPerSecond);
+                    const unit = (viewMode === 'bags' && prefix !== 'a' && machine.numberOfBags > 1) ? 'Beutel' : 'Kisten';
+                    const unitCapacity = unit === 'Beutel' ? (machine.boxCapacity / machine.numberOfBags) : machine.boxCapacity;
+                    const remainingUnits = machine.isPaused ? 0 : Math.floor(totalPartsInShift / unitCapacity) - Math.floor(machine.currentFill / unitCapacity);
+                    shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${remainingUnits} ${unit} bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
+                }
+
+                const lastBoxInfoEl = machineDiv.querySelector('.last-box-info');
+                if (lastBoxInfoEl) {
+                    const shiftEndTime = getShiftEndTime(now, currentShift);
+                    const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
+                    const totalPartsInShift = machine.currentFill + (remainingShiftTimeSec * partsPerSecond);
+                    const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor(totalPartsInShift / machine.boxCapacity);
+                    if (!machine.isPaused && boxesRemainingForShift > 0) {
+                        const partsForRemainingBoxes = (boxesRemainingForShift * machine.boxCapacity) - (machine.currentFill % machine.boxCapacity);
+                        const timeForRemainingBoxes = partsForRemainingBoxes / partsPerSecond;
+                        const lastBoxTime = new Date(now.getTime() + timeForRemainingBoxes * 1000);
+                        lastBoxInfoEl.textContent = `Letzte Kiste der Schicht: ${formatTimeOfDay(lastBoxTime)} Uhr`;
+                    } else {
+                        lastBoxInfoEl.textContent = '';
+                    }
+                }
+
+                const fillInput = machineDiv.querySelector('.fillInput');
+                if (fillInput && !machine.isFillingManually) fillInput.value = Math.floor(visualFill);
+                
+                if (prefix === 'a') {
+                    const pauseButton = machineDiv.querySelector('.machine-actions .pause, .machine-actions .resume');
+                    if (pauseButton) {
+                        pauseButton.textContent = machine.isPaused ? 'Fortsetzen' : 'Anhalten';
+                        pauseButton.className = machine.isPaused ? 'resume' : 'pause';
+                    }
+                }
+            } else if (prefix === 'o' && viewMode === 'compact') {
+                const timeRemainingEl = machineDiv.querySelector('.time-remaining');
+                const timeOfDayEl = machineDiv.querySelector('.time-of-day');
+                if (machine.isPaused) { if (timeRemainingEl) timeRemainingEl.textContent = '⏸️'; if (timeOfDayEl) timeOfDayEl.textContent = 'Pausiert'; }
+                else { if (timeRemainingEl) timeRemainingEl.textContent = formatTime(secondsLeft); if (timeOfDayEl) timeOfDayEl.textContent = formatTimeOfDay(new Date(now.getTime() + secondsLeft * 1000)); }
+                
+                const fillLevelEl = machineDiv.querySelector('.fill-level');
+                if (fillLevelEl) fillLevelEl.textContent = `${Math.floor(progressPercent)}%`;
+                
+                const circleEl = machineDiv.querySelector('.progress-circle');
+                if (circleEl) {
+                    let color;
+                    if (secondsLeft <= 300) { color = '#F44336'; } else if (secondsLeft <= 900) { color = '#FF9800'; } else { color = '#4CAF50'; }
+                    circleEl.style.setProperty('--progress-color', color);
+                    circleEl.style.setProperty('--progress-percent', progressPercent);
+                }
             }
-        }
-    });
-}
+        });
+    }
 
     // --- HAUPT-UPDATE-SCHLEIFE ---
     function updateShiftSummaryUI(total, shift) {
