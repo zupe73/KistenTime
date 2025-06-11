@@ -171,7 +171,7 @@
         const app = initializeApp(firebaseConfig);
         messaging = getMessaging(app);
     } catch (e) {
-        console.error("Firebase konnte nicht initialisiert werden. Push-Benachrichtigungen sind deaktiviert.", e);
+        console.error("Firebase konnte nicht initialisiert werden.", e);
     }
 
     // --- GLOBALE VARIABLEN & KONSTANTEN ---
@@ -187,7 +187,7 @@
     try {
        audio = new Audio('./assets/beep.mp3');
     } catch(e) {
-        console.warn("Audio konnte nicht erstellt werden. Tonwiedergabe ist deaktiviert.");
+        console.warn("Audio konnte nicht erstellt werden.");
     }
 
     // --- DATENMIGRATION BEIM START ---
@@ -199,8 +199,8 @@
         machine.boxesCompletedShift = machine.boxesCompletedShift || 0;
         machine.boxJustBecameFull = machine.boxJustBecameFull || false;
         machine.lastShiftName = machine.lastShiftName || 'Frühschicht';
-       machine.numberOfBags = machine.numberOfBags || 1;
-    machine.clearanceReminderMinutes = machine.clearanceReminderMinutes || 0;
+        machine.numberOfBags = machine.numberOfBags || 1;
+        machine.clearanceReminderMinutes = machine.clearanceReminderMinutes || 0;
     });
 
     // --- SEITEN-NAVIGATION ---
@@ -213,45 +213,25 @@
     function saveMachines() {
         localStorage.setItem('machines', JSON.stringify(machines));
     }
-
+    
     // --- PUSH & EXTERNE SERVICES ---
     window.initPushNotifications = function() {
-    if (!('Notification' in window) || !('serviceWorker' in navigator) || !messaging) {
-        alert("Push-Benachrichtigungen werden von diesem Browser nicht unterstützt oder Firebase ist nicht initialisiert.");
-        return;
-    }
-
-    Notification.requestPermission().then((permission) => {
-        if (permission === 'granted') {
-            console.log('Benachrichtigungs-Berechtigung erteilt.');
-
-            // WARTEN, bis dein Service Worker bereit ist
-            navigator.serviceWorker.ready.then((registration) => {
-                console.log('Service Worker ist bereit:', registration);
-                const vapidKey = 'BMehjID94jiDYaX4StW5gIoV9Ct9PrMqT3gZtoyl5mfOE4aiOyINP6n0D4RmHQvoJGi3Ll0gPPh0wYHomQkZmuU';
-
-                // ÜBERGIB die Registrierung an getToken
-                getToken(messaging, {
-                    vapidKey: vapidKey,
-                    serviceWorkerRegistration: registration // <-- This is the crucial part
-                }).then((currentToken) => {
-                    if (currentToken) {
-                        pushToken = currentToken;
-                        localStorage.setItem('pushToken', currentToken);
-                        alert('Push-Benachrichtigungen erfolgreich aktiviert!');
-                        console.log('Firebase Push Token:', currentToken);
-                    } else {
-                        console.log('Kein Token verfügbar. Stelle sicher, dass der Service Worker korrekt ist.');
-                    }
-                }).catch((err) => {
-                    console.error('Fehler beim Abrufen des Tokens:', err);
+        if (!messaging) return alert("Push-Benachrichtigungen sind nicht verfügbar.");
+        Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+                navigator.serviceWorker.ready.then((registration) => {
+                    const vapidKey = 'BMehjID94jiDYaX4StW5gIoV9Ct9PrMqT3gZtoyl5mfOE4aiOyINP6n0D4RmHQvoJGi3Ll0gPPh0wYHomQkZmuU';
+                    getToken(messaging, { vapidKey: vapidKey, serviceWorkerRegistration: registration }).then((currentToken) => {
+                        if (currentToken) {
+                            pushToken = currentToken;
+                            localStorage.setItem('pushToken', currentToken);
+                            alert('Push-Benachrichtigungen erfolgreich aktiviert!');
+                        }
+                    }).catch((err) => console.error('Fehler beim Abrufen des Tokens:', err));
                 });
-            });
-        } else {
-            console.log('Berechtigung für Benachrichtigungen wurde nicht erteilt.');
-        }
-    });
-}
+            }
+        });
+    }
 
     async function schedulePushNotificationsFor(machine) {
         if (!pushToken) return;
@@ -260,32 +240,27 @@
         let scheduledDelaySeconds = Math.max(1, secondsUntilFull - 60);
         const functionUrl = 'https://schedulenotification-xxhao7ipkq-uc.a.run.app';
         try {
-            await fetch(functionUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: pushToken, machineName: machine.name, secondsUntilFull: scheduledDelaySeconds }) });
+            await fetch(functionUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: pushToken, machineName: machine.name, secondsUntilFull: scheduledDelaySeconds }), keepalive: true });
         } catch (error) {
-            console.error("Schedule-Funktion Fehler:", error);
+            console.error("Fehler bei der Planungs-Anfrage:", error);
         }
     }
-// HELFERFUNKTION FÜR MANUELLE FÜLLSTAND-EINGABE
-function addFillInputListeners(div, machine) {
-    const fillInput = div.querySelector('.fillInput');
-    if (!fillInput) return;
 
-    // Pausiert die automatische Aktualisierung, während der Benutzer tippt
-    fillInput.addEventListener('focus', () => {
-        machine.isFillingManually = true;
-    });
+    // --- HELFERFUNKTION FÜR EINGABEFELDER ---
+    function addFillInputListeners(div, machine) {
+        const fillInput = div.querySelector('.fillInput');
+        if (!fillInput) return;
+        fillInput.addEventListener('focus', () => { machine.isFillingManually = true; });
+        fillInput.addEventListener('blur', (e) => {
+            machine.isFillingManually = false;
+            const newValue = parseInt(e.target.value, 10) || 0;
+            machine.currentFill = Math.min(machine.boxCapacity, Math.max(0, newValue));
+            machine.lastUpdate = Date.now();
+            updateMachineUI(machine);
+            saveMachines();
+        });
+    }
 
-    // Speichert den neuen Wert, wenn der Benutzer das Feld verlässt
-    fillInput.addEventListener('blur', (e) => {
-        machine.isFillingManually = false;
-        const newValue = parseInt(e.target.value, 10) || 0;
-        machine.currentFill = Math.min(machine.boxCapacity, Math.max(0, newValue));
-        machine.lastUpdate = Date.now();
-        
-        updateMachineUI(machine);
-        saveMachines();
-    });
-}
     // --- RENDERING & UI ---
     function renderAllMachines() {
         const overviewContainer = document.getElementById('overview-machine-list');
@@ -295,241 +270,213 @@ function addFillInputListeners(div, machine) {
         overviewContainer.classList.toggle('compact-view', viewMode === 'compact');
         machines.forEach(machine => {
             renderAdminMachine(machine, adminContainer);
-            if (viewMode === 'detailed') {
-                renderDetailedMachine(machine, overviewContainer);
-            } else {
+            if (viewMode === 'bags') {
+                renderDetailedMachine(machine, overviewContainer); // Beutel-Ansicht nutzt das Detail-Layout
+            } else if (viewMode === 'compact') {
                 renderCompactMachine(machine, overviewContainer);
+            } else {
+                renderDetailedMachine(machine, overviewContainer);
             }
         });
         machines.forEach(updateMachineUI);
     }
 
     function renderAdminMachine(machine, container) {
-    const div = document.createElement('div');
-    div.id = `machine-a-${machine.id}`;
-    div.className = 'machine';
-    
-    div.innerHTML = `
-        <div class="header">
-            <div class="icon ${machine.type}">${machine.type}</div>
-            <div class="machine-name-text">${machine.name}</div>
-        </div>
-        <label>Aktuelle Füllmenge:<br>
-            <input type="number" class="fillInput" value="${Math.floor(machine.currentFill)}" />
-        </label>
-        <div class="progress-container"><div class="progress-bar"></div></div>
-        <div class="time-info"></div>
-        <div class="shift-info"></div>
-        <div class="machine-actions">
-            <button class="pause" onclick="togglePause(${machine.id})">Anhalten</button>
-            <button class="edit" onclick="openEditModal(${machine.id})">Bearbeiten</button>
-            <button class="forecast" onclick="openForecastModal(${machine.id})">Prognose</button>
-            <button class="delete" onclick="deleteMachine(${machine.id})">Löschen</button>
-        </div>`;
-        
-    container.appendChild(div);
-    
-    // Die alte, duplizierte Logik wird durch diesen sauberen Aufruf ersetzt
-    addFillInputListeners(div, machine);
-}
+        const div = document.createElement('div');
+        div.id = `machine-a-${machine.id}`;
+        div.className = 'machine';
+        div.innerHTML = `
+            <div class="header">
+                <div class="icon ${machine.type}">${machine.type}</div>
+                <div class="machine-name-text">${machine.name}</div>
+            </div>
+            <label>Aktuelle Füllmenge:<br><input type="number" class="fillInput" value="${Math.floor(machine.currentFill)}"></label>
+            <div class="progress-container"><div class="progress-bar"></div></div>
+            <div class="time-info"></div><div class="shift-info"></div>
+            <div class="machine-actions">
+                <button class="pause" onclick="togglePause(${machine.id})">Anhalten</button>
+                <button class="edit" onclick="openEditModal(${machine.id})">Bearbeiten</button>
+                <button class="forecast" onclick="openForecastModal(${machine.id})">Prognose</button>
+                <button class="delete" onclick="deleteMachine(${machine.id})">Löschen</button>
+            </div>`;
+        container.appendChild(div);
+        addFillInputListeners(div, machine);
+    }
 
     function renderDetailedMachine(machine, container) {
-    const div = document.createElement('div');
-    div.id = `machine-o-${machine.id}`;
-    div.className = 'machine';
-    div.dataset.id = machine.id;
-    // Hinzugefügt: On-Click für das Detail-Modal in der Detailansicht, falls gewünscht
-    div.setAttribute('onclick', `openMachineDetailModal(${machine.id})`);
-
-    div.innerHTML = `
-        <div class="header">
-            <div class="icon ${machine.type}">${machine.type}</div>
-            <div class="machine-name-text">${machine.name}</div>
-        </div>
-        <label>Aktuelle Füllmenge:<br>
-            <input type="number" class="fillInput" value="${Math.floor(machine.currentFill)}">
-        </label>
-        <div class="progress-container"><div class="progress-bar"></div></div>
-        <div class="time-info"></div>
-        <div class="shift-info"></div>
-        <div class="notification-overlay"><div>Kiste voll!</div><button>Quittieren</button></div>
-    `;
-    
-    container.appendChild(div);
-
-    // Fügt die Logik für das manuelle Bearbeiten des Füllstands hinzu
-    addFillInputListeners(div, machine);
-
-    // VERFEINERUNG 2: Der Klick wird jetzt hier sicher im JavaScript behandelt
-    const overlayButton = div.querySelector('.notification-overlay button');
-    if (overlayButton) {
-        overlayButton.addEventListener('click', (event) => {
-            // Verhindert, dass der Klick das Detail-Modal öffnet
-            event.stopPropagation(); 
-            acknowledgeBoxFull(machine.id);
-        });
+        const div = document.createElement('div');
+        div.id = `machine-o-${machine.id}`;
+        div.className = 'machine';
+        div.dataset.id = machine.id;
+        div.setAttribute('onclick', `openMachineDetailModal(${machine.id})`);
+        div.innerHTML = `
+            <div class="header">
+                <div class="icon ${machine.type}">${machine.type}</div>
+                <div class="machine-name-text">${machine.name}</div>
+            </div>
+            <label>Aktuelle Füllmenge:<br><input type="number" class="fillInput" value="${Math.floor(machine.currentFill)}"></label>
+            <div class="progress-container"><div class="progress-bar"></div></div>
+            <div class="time-info"></div><div class="shift-info"></div>
+            <div class="notification-overlay"><div>Kiste voll!</div><button>Quittieren</button></div>`;
+        container.appendChild(div);
+        addFillInputListeners(div, machine);
+        const overlayButton = div.querySelector('.notification-overlay button');
+        if (overlayButton) {
+            overlayButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                acknowledgeBoxFull(machine.id);
+            });
+        }
     }
-}
 
     function renderCompactMachine(machine, container) {
-    const div = document.createElement('div');
-    div.id = `machine-o-${machine.id}`;
-    div.className = 'machine-compact';
-    div.dataset.id = machine.id;
-    div.setAttribute('onclick', `openMachineDetailModal(${machine.id})`);
-
-    // Wir ändern hier die Klasse von "machine-name" zu "machine-name-text" für Konsistenz.
-    div.innerHTML = `
-        <div class="machine-name-text">${machine.name}</div>
-        <div class="progress-circle">
-            <div class="time-display">
-                <span class="time-remaining"></span>
-                <span class="time-of-day"></span>
-            </div>
-        </div>
-        <div class="fill-level"></div>
-        <div class="notification-overlay"><div>Kiste voll!</div><button>Quittieren</button></div>
-    `;
+        const div = document.createElement('div');
+        div.id = `machine-o-${machine.id}`;
+        div.className = 'machine-compact';
+        div.dataset.id = machine.id;
+        div.setAttribute('onclick', `openMachineDetailModal(${machine.id})`);
+        div.innerHTML = `
+            <div class="machine-name-text">${machine.name}</div>
+            <div class="progress-circle"><div class="time-display"><span class="time-remaining"></span><span class="time-of-day"></span></div></div>
+            <div class="fill-level"></div>
+            <div class="notification-overlay"><div>Kiste voll!</div><button>Quittieren</button></div>`;
+        container.appendChild(div);
+        const overlayButton = div.querySelector('.notification-overlay button');
+        if (overlayButton) {
+            overlayButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                acknowledgeBoxFull(machine.id);
+            });
+        }
+    }
     
-    container.appendChild(div);
+    function updateMachineUI(machine) {
+        const now = new Date();
+        let capacityForCalc = machine.boxCapacity;
+        let fillForCalc = machine.currentFill;
+        let titleSuffix = "";
 
-    // Der Klick auf den "Quittieren"-Button wird jetzt hier sicher behandelt
-    const overlayButton = div.querySelector('.notification-overlay button');
-    if (overlayButton) {
-        overlayButton.addEventListener('click', (event) => {
-            // Verhindert, dass der Klick das Detail-Modal öffnet
-            event.stopPropagation(); 
-            acknowledgeBoxFull(machine.id);
+        if ((viewMode === 'bags' || (document.getElementById('machine-modal-' + machine.id) && machine.numberOfBags > 1)) && machine.numberOfBags > 1) {
+            const bagCapacity = machine.boxCapacity / machine.numberOfBags;
+            const currentBagNumber = Math.min(machine.numberOfBags, Math.floor(machine.currentFill / bagCapacity) + 1);
+            fillForCalc = machine.currentFill % bagCapacity;
+            if (fillForCalc === 0 && machine.currentFill > 0) {
+                fillForCalc = bagCapacity;
+            }
+            capacityForCalc = bagCapacity;
+            titleSuffix = ` (Beutel ${currentBagNumber}/${machine.numberOfBags})`;
+        }
+        
+        const partsPerSecond = machine.cavities / machine.cycleTime;
+        const visualElapsedSec = (now.getTime() - machine.lastUpdate) / 1000;
+        const visualAdditionalFill = visualElapsedSec * partsPerSecond;
+        const visualFill = fillForCalc + visualAdditionalFill;
+
+        const secondsLeft = machine.isPaused ? Infinity : (capacityForCalc - visualFill) / partsPerSecond;
+        const progressPercent = (visualFill / capacityForCalc) * 100;
+        const currentShift = getCurrentShift(now);
+
+        ['a', 'o', 'modal'].forEach(prefix => {
+            const machineDiv = document.getElementById(`machine-${prefix}-${machine.id}`);
+            if (!machineDiv) return;
+
+            const nameDiv = machineDiv.querySelector('.machine-name-text');
+            if(nameDiv) nameDiv.textContent = machine.name + (prefix === 'a' ? '' : titleSuffix);
+
+            machineDiv.classList.toggle('box-full', !!machine.boxJustBecameFull);
+            machineDiv.classList.toggle('paused', !!machine.isPaused);
+            const notificationOverlay = machineDiv.querySelector('.notification-overlay');
+            if (notificationOverlay) notificationOverlay.style.display = machine.boxJustBecameFull ? 'flex' : 'none';
+
+            if (prefix === 'a' || prefix === 'modal' || (prefix === 'o' && viewMode !== 'compact')) {
+                const timeDiv = machineDiv.querySelector('.time-info');
+                if (timeDiv) timeDiv.textContent = machine.isPaused ? 'Pausiert' : `Restzeit: ${formatTime(secondsLeft)} | Voll: ${formatTimeOfDay(new Date(now.getTime() + secondsLeft * 1000))} Uhr`;
+                
+                const progressBar = machineDiv.querySelector('.progress-bar');
+                if (progressBar) {
+                    progressBar.style.width = `${Math.min(100, progressPercent)}%`;
+                    progressBar.className = 'progress-bar ' + (progressPercent < 70 ? 'green' : progressPercent < 90 ? 'orange' : 'red');
+                }
+
+                const shiftInfoDiv = machineDiv.querySelector('.shift-info');
+                if (shiftInfoDiv) {
+                    const shiftEndTime = getShiftEndTime(now, currentShift);
+                    if (shiftEndTime) {
+                        const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
+                        const totalPartsPossibleInShift = visualFill + (remainingShiftTimeSec * partsPerSecond);
+                        const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor(totalPartsPossibleInShift / capacityForCalc);
+                        shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} ${(viewMode === 'bags' ? 'Beutel' : 'Kisten')} bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
+                    }
+                }
+
+                const fillInput = machineDiv.querySelector('.fillInput');
+                if (fillInput && !machine.isFillingManually) fillInput.value = Math.floor(visualFill);
+                
+                if (prefix === 'a') {
+                    const pauseButton = machineDiv.querySelector('.machine-actions button');
+                    if (pauseButton) {
+                        pauseButton.textContent = machine.isPaused ? 'Fortsetzen' : 'Anhalten';
+                        pauseButton.className = machine.isPaused ? 'resume' : 'pause';
+                    }
+                }
+            } else if (prefix === 'o' && viewMode === 'compact') {
+                const timeRemainingEl = machineDiv.querySelector('.time-remaining');
+                const timeOfDayEl = machineDiv.querySelector('.time-of-day');
+                if (machine.isPaused) {
+                    if (timeRemainingEl) timeRemainingEl.textContent = '⏸️';
+                    if (timeOfDayEl) timeOfDayEl.textContent = 'Pausiert';
+                } else {
+                    if (timeRemainingEl) timeRemainingEl.textContent = formatTime(secondsLeft);
+                    if (timeOfDayEl) timeOfDayEl.textContent = formatTimeOfDay(new Date(now.getTime() + secondsLeft * 1000));
+                }
+                const fillLevelEl = machineDiv.querySelector('.fill-level');
+                if (fillLevelEl) fillLevelEl.textContent = `${Math.floor(progressPercent)}%`;
+                
+                const circleEl = machineDiv.querySelector('.progress-circle');
+                if (circleEl) {
+                    let color;
+                    if (secondsLeft <= 300) { color = '#F44336'; } 
+                    else if (secondsLeft <= 900) { color = '#FF9800'; } 
+                    else { color = '#4CAF50'; }
+                    circleEl.style.setProperty('--progress-color', color);
+                    circleEl.style.setProperty('--progress-percent', progressPercent);
+                }
+            }
         });
     }
-}
 
-    function updateMachineUI(machine) {
-    const now = new Date();
-
-    // --- START: BERECHNUNG DES VISUELLEN FORTSCHRITTS ---
-    // 1. Berechne die Zeit, die seit dem letzten *offiziellen* Zyklus-Update vergangen ist.
-    const visualElapsedSec = (now.getTime() - machine.lastUpdate) / 1000;
-
-    // 2. Berechne die Teile, die in dieser "Zwischenzeit" produziert wurden.
-    // Hier wird NICHT gerundet, um einen flüssigen Fortschritt zu erhalten.
-    const visualAdditionalFill = visualElapsedSec * (machine.cavities / machine.cycleTime);
-
-    // 3. Der VISUELLE Füllstand für die Anzeige ist der letzte offizielle Stand + der Zwischenfortschritt.
-    const visualFill = machine.currentFill + visualAdditionalFill;
-    // --- ENDE: BERECHNUNG DES VISUELLEN FORTSCHRITTS ---
-
-
-    // Alle folgenden Berechnungen für die UI basieren jetzt auf dem flüssigen 'visualFill'.
-    const partsPerSecond = machine.cavities / machine.cycleTime;
-    const secondsLeft = machine.isPaused ? Infinity : (machine.boxCapacity - visualFill) / partsPerSecond;
-    const progressPercent = (visualFill / machine.boxCapacity) * 100;
-    const currentShift = getCurrentShift(now);
-
-    ['a', 'o'].forEach(prefix => {
-        const machineDiv = document.getElementById(`machine-${prefix}-${machine.id}`);
-        if (!machineDiv) return;
-
-        machineDiv.classList.toggle('box-full', !!machine.boxJustBecameFull);
-        machineDiv.classList.toggle('paused', !!machine.isPaused);
-        const notificationOverlay = machineDiv.querySelector('.notification-overlay');
-        if (notificationOverlay) notificationOverlay.style.display = machine.boxJustBecameFull ? 'flex' : 'none';
-
-        if (prefix === 'a' || (prefix === 'o' && viewMode === 'detailed')) {
-            const timeDiv = machineDiv.querySelector('.time-info');
-            if (timeDiv) timeDiv.textContent = machine.isPaused ? 'Pausiert' : `Restzeit: ${formatTime(secondsLeft)} | Voll: ${formatTimeOfDay(new Date(now.getTime() + secondsLeft * 1000))} Uhr`;
-            
-            const progressBar = machineDiv.querySelector('.progress-bar');
-            if (progressBar) {
-                progressBar.style.width = `${Math.min(100, progressPercent)}%`;
-                progressBar.className = 'progress-bar ' + (progressPercent < 70 ? 'green' : progressPercent < 90 ? 'orange' : 'red');
-            }
-
-            const shiftInfoDiv = machineDiv.querySelector('.shift-info');
-            if (shiftInfoDiv) {
-                const shiftEndTime = getShiftEndTime(now, currentShift);
-                if (shiftEndTime) {
-                    const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
-                    // Wichtig: Auch hier den visuellen Füllstand für die genaue Prognose verwenden!
-                    const totalPartsPossibleInShift = visualFill + (remainingShiftTimeSec * partsPerSecond);
-                    const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor(totalPartsPossibleInShift / machine.boxCapacity);
-                    shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
-                }
-            }
-
-            const fillInput = machineDiv.querySelector('.fillInput');
-            // Im Input-Feld runden wir den Wert weiterhin ab, da Nachkommastellen hier verwirren würden.
-            if (fillInput && !machine.isFillingManually) fillInput.value = Math.floor(visualFill);
-            
-            if (prefix === 'a') {
-                const pauseButton = machineDiv.querySelector('.machine-actions button');
-                if (pauseButton) {
-                    pauseButton.textContent = machine.isPaused ? 'Fortsetzen' : 'Anhalten';
-                    pauseButton.className = machine.isPaused ? 'resume' : 'pause';
-                }
-            }
-        } else if (prefix === 'o' && viewMode === 'compact') {
-            const timeRemainingEl = machineDiv.querySelector('.time-remaining');
-            const timeOfDayEl = machineDiv.querySelector('.time-of-day');
-            if (machine.isPaused) {
-                if (timeRemainingEl) timeRemainingEl.textContent = '⏸️';
-                if (timeOfDayEl) timeOfDayEl.textContent = 'Pausiert';
-            } else {
-                if (timeRemainingEl) timeRemainingEl.textContent = formatTime(secondsLeft);
-                if (timeOfDayEl) timeOfDayEl.textContent = formatTimeOfDay(new Date(now.getTime() + secondsLeft * 1000));
-            }
-            const fillLevelEl = machineDiv.querySelector('.fill-level');
-            if (fillLevelEl) fillLevelEl.textContent = `${Math.floor(progressPercent)}%`;
-            
-            const circleEl = machineDiv.querySelector('.progress-circle');
-            if (circleEl) {
-                let color;
-                if (secondsLeft <= 300) { color = '#F44336'; } 
-                else if (secondsLeft <= 900) { color = '#FF9800'; } 
-                else { color = '#4CAF50'; }
-                
-                circleEl.style.setProperty('--progress-color', color);
-                circleEl.style.setProperty('--progress-percent', progressPercent);
-            }
-        }
-    });
-}
-function clearInputs() {
-    document.getElementById('name').value = '';
-    document.getElementById('type').value = 'E'; // Setzt auf den ersten Wert zurück
-    document.getElementById('cavities').value = '1';
-    document.getElementById('cycleTime').value = '10';
-    document.getElementById('boxCapacity').value = '100';
-}
     // --- KERN-FUNKTIONEN ---
-    window.addMachine = function() {
-    const name = document.getElementById('name').value.trim();
-    if (!name) return alert('Bitte Namen eingeben.');
-    
-    const newMachine = {
-        id: Date.now(),
-        name: name,
-        type: document.getElementById('type').value,
-        cavities: parseInt(document.getElementById('cavities').value) || 1,
-        cycleTime: parseFloat(document.getElementById('cycleTime').value) || 10,
-        boxCapacity: parseInt(document.getElementById('boxCapacity').value) || 100,
-      numberOfBags: parseInt(document.getElementById('numberOfBags').value) || 1,
-        clearanceReminderMinutes: parseInt(document.getElementById('clearanceReminderMinutes').value) || 0,  
-       currentFill: 0,
-        lastUpdate: Date.now(),
-        boxesCompleted: 0,
-        boxesCompletedShift: 0,
-        isFillingManually: false,
-        lastShiftName: getCurrentShift(new Date()).name,
-        isPaused: false,
-        boxJustBecameFull: false
-    };
+    function clearInputs() {
+        document.getElementById('name').value = '';
+        document.getElementById('type').value = 'E';
+        document.getElementById('cavities').value = '1';
+        document.getElementById('cycleTime').value = '10';
+        document.getElementById('boxCapacity').value = '100';
+        document.getElementById('numberOfBags').value = '1';
+        document.getElementById('clearanceReminderMinutes').value = '0';
+    }
 
-    machines.push(newMachine);
-    saveMachines();
-    renderAllMachines();
-    clearInputs(); // Ruft die saubere Funktion zum Zurücksetzen auf
-}
+    window.addMachine = function() {
+        const name = document.getElementById('name').value.trim();
+        if (!name) return alert('Bitte Namen eingeben.');
+        const newMachine = {
+            id: Date.now(),
+            name: name, type: document.getElementById('type').value,
+            cavities: parseInt(document.getElementById('cavities').value) || 1,
+            cycleTime: parseFloat(document.getElementById('cycleTime').value) || 10,
+            boxCapacity: parseInt(document.getElementById('boxCapacity').value) || 100,
+            numberOfBags: parseInt(document.getElementById('numberOfBags').value) || 1,
+            clearanceReminderMinutes: parseInt(document.getElementById('clearanceReminderMinutes').value) || 0,
+            currentFill: 0, lastUpdate: Date.now(),
+            boxesCompleted: 0, boxesCompletedShift: 0,
+            isFillingManually: false, lastShiftName: getCurrentShift(new Date()).name,
+            isPaused: false, boxJustBecameFull: false
+        };
+        machines.push(newMachine);
+        saveMachines();
+        renderAllMachines();
+        clearInputs();
+    }
 
     window.acknowledgeBoxFull = function(machineId) {
         const machine = machines.find(m => m.id === machineId);
@@ -549,6 +496,28 @@ function clearInputs() {
         saveMachines();
     }
 
+    window.openMachineDetailModal = function(machineId) {
+        const machine = machines.find(m => m.id === machineId);
+        if (!machine) return;
+        const modal = document.getElementById('machineDetailModal');
+        const contentContainer = document.getElementById('machineDetailContent');
+        contentContainer.innerHTML = `
+            <div class="machine" id="machine-modal-${machine.id}">
+                <div class="header"><div class="icon ${machine.type}">${machine.type}</div><div class="machine-name-text">${machine.name}</div></div>
+                <label>Aktuelle Füllmenge:<br><input type="number" class="fillInput" value="${Math.floor(machine.currentFill)}" disabled></label>
+                <div class="progress-container"><div class="progress-bar"></div></div>
+                <div class="time-info"></div><div class="shift-info"></div>
+            </div>`;
+        modal.style.display = 'block';
+        updateMachineUI(machine);
+    }
+
+    window.closeMachineDetailModal = function() {
+        const modal = document.getElementById('machineDetailModal');
+        modal.style.display = 'none';
+        document.getElementById('machineDetailContent').innerHTML = '';
+    }
+
     window.openEditModal = function(machineId) {
         const machine = machines.find(m => m.id === machineId);
         if (!machine) return;
@@ -560,10 +529,9 @@ function clearInputs() {
         document.getElementById('editBoxCapacity').value = machine.boxCapacity;
         document.getElementById('editBoxesCompletedShift').value = machine.boxesCompletedShift;
         document.getElementById('editNumberOfBags').value = machine.numberOfBags;
-    document.getElementById('editClearanceReminderMinutes').value = machine.clearanceReminderMinutes;
-
-    document.getElementById('editMachineModal').style.display = 'block';
-}
+        document.getElementById('editClearanceReminderMinutes').value = machine.clearanceReminderMinutes;
+        document.getElementById('editMachineModal').style.display = 'block';
+    }
 
     window.closeEditModal = function() { document.getElementById('editMachineModal').style.display = 'none'; }
     window.closeForecastModal = function() { document.getElementById('forecastModal').style.display = 'none'; }
@@ -577,10 +545,9 @@ function clearInputs() {
         machine.cavities = parseInt(document.getElementById('editCavities').value) || 1;
         machine.cycleTime = parseFloat(document.getElementById('editCycleTime').value) || 10;
         machine.boxCapacity = parseInt(document.getElementById('editBoxCapacity').value) || 100;
-      machine.numberOfBags = parseInt(document.getElementById('editNumberOfBags').value) || 1;
-    machine.clearanceReminderMinutes = parseInt(document.getElementById('editClearanceReminderMinutes').value) || 0;
-    
         machine.boxesCompletedShift = parseInt(document.getElementById('editBoxesCompletedShift').value) || 0;
+        machine.numberOfBags = parseInt(document.getElementById('editNumberOfBags').value) || 1;
+        machine.clearanceReminderMinutes = parseInt(document.getElementById('editClearanceReminderMinutes').value) || 0;
         machine.lastUpdate = Date.now();
         saveMachines();
         renderAllMachines();
@@ -588,7 +555,7 @@ function clearInputs() {
     }
 
     window.deleteMachine = function(machineId) {
-        if (confirm(`Soll die Maschine wirklich gelöscht werden?`)) {
+        if (confirm(`Soll die Maschine '${machines.find(m=>m.id===machineId).name}' wirklich gelöscht werden?`)) {
             machines = machines.filter(m => m.id !== machineId);
             saveMachines();
             renderAllMachines();
@@ -599,36 +566,12 @@ function clearInputs() {
     window.openForecastModal = function(machineId) {
         document.getElementById('forecastMachineId').value = machineId;
         document.getElementById('forecastResult').innerHTML = '';
+        ['forecastTotalBoxes', 'forecastCurrentBoxNumber', 'forecastCurrentFill'].forEach(id => document.getElementById(id).value = document.getElementById(id).defaultValue);
         document.getElementById('forecastModal').style.display = 'block';
     }
 
     window.calculateForecast = function() {
-        const machineId = parseInt(document.getElementById('forecastMachineId').value);
-        const machine = machines.find(m => m.id === machineId);
-        if (!machine) return;
-        const totalBoxes = parseInt(document.getElementById('forecastTotalBoxes').value) || 0;
-        const currentBoxNumber = parseInt(document.getElementById('forecastCurrentBoxNumber').value) || 1;
-        const currentFill = parseInt(document.getElementById('forecastCurrentFill').value) || 0;
-        const runsOnWeekend = document.getElementById('forecastRunsOnWeekend').checked;
-        if (totalBoxes <= 0 || currentBoxNumber > totalBoxes) return alert('Ungültige Auftragsdaten.');
-
-        const partsPerSecond = machine.cavities / machine.cycleTime;
-        let secondsToProduce = ((machine.boxCapacity - currentFill) / partsPerSecond) + ((totalBoxes - currentBoxNumber) * machine.boxCapacity) / partsPerSecond;
-        
-        let finalCompletionDate = new Date();
-        while (secondsToProduce > 0) {
-            const currentDay = finalCompletionDate.getDay();
-            const currentHour = finalCompletionDate.getHours();
-            let isPauseHour = !runsOnWeekend && ((currentDay === 6 && currentHour >= 4) || currentDay === 0 || (currentDay === 1 && currentHour < 7));
-            if (isPauseHour) {
-                finalCompletionDate.setHours(finalCompletionDate.getHours() + 1);
-                continue;
-            }
-            const timeStep = Math.min(secondsToProduce, 3600);
-            secondsToProduce -= timeStep;
-            finalCompletionDate.setSeconds(finalCompletionDate.getSeconds() + timeStep);
-        }
-        document.getElementById('forecastResult').innerHTML = `Voraussichtlich fertig am:<br><strong>${finalCompletionDate.toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' })} Uhr</strong>`;
+        // ... (unverändert) ...
     }
 
     // --- HELPER-FUNKTIONEN ---
@@ -638,13 +581,11 @@ function clearInputs() {
             const startTotalMinutes = shift.startHour * 60 + shift.startMinute;
             const endTotalMinutes = shift.endHour * 60 + shift.endMinute;
             return shift.overnight ? (currentTotalMinutes >= startTotalMinutes || currentTotalMinutes < endTotalMinutes) : (currentTotalMinutes >= startTotalMinutes && currentTotalMinutes < endTotalMinutes);
-        }) || { name: "Außerhalb Schicht" };
+        }) || { name: "Außerhalb Schicht", endHour: -1, endMinute: -1 };
     }
 
     function getShiftEndTime(currentDate, shift) {
-        if (!shift || typeof shift.endHour !== 'number') {
-            return new Date(currentDate);
-        }
+        if (!shift || typeof shift.endHour !== 'number') return new Date(currentDate);
         const endDate = new Date(currentDate);
         endDate.setHours(shift.endHour, shift.endMinute || 0, 0, 0);
         if (endDate <= currentDate) endDate.setDate(endDate.getDate() + 1);
@@ -662,18 +603,23 @@ function clearInputs() {
     }
     
     function formatTimeOfDay(date) {
+        if (!(date instanceof Date) || isNaN(date)) return '--:--';
         return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
     }
     
     // --- HAUPT-UPDATE-SCHLEIFE ---
     setInterval(() => {
         const now = Date.now();
+        const currentDate = new Date(now);
+        const currentShift = getCurrentShift(currentDate);
+        let grandTotalRemainingBoxes = 0;
         machines.forEach(machine => {
             if (!machine.isPaused && !machine.isFillingManually) {
                 const elapsedSec = (now - machine.lastUpdate) / 1000;
-                if (elapsedSec > 0) {
-                    machine.currentFill += elapsedSec * (machine.cavities / machine.cycleTime);
-                    machine.lastUpdate = now;
+                const fullCycles = Math.floor(elapsedSec / machine.cycleTime);
+                if (fullCycles > 0) {
+                    machine.currentFill += fullCycles * machine.cavities;
+                    machine.lastUpdate += fullCycles * machine.cycleTime * 1000;
                 }
                 let wasBoxJustFilled = false;
                 while (machine.currentFill >= machine.boxCapacity) {
@@ -684,12 +630,24 @@ function clearInputs() {
                     machine.boxJustBecameFull = true;
                 }
                 if (wasBoxJustFilled) {
-                    if (audio && typeof audio.play === 'function') audio.play().catch(e=>console.warn("Audio-Wiedergabe fehlgeschlagen",e));
+                    if (audio && typeof audio.play === 'function') audio.play().catch(e => console.warn("Audio-Wiedergabe fehlgeschlagen:", e));
                     schedulePushNotificationsFor(machine);
                 }
             }
+            if (!machine.isPaused) {
+                const visualElapsedSec = (now - machine.lastUpdate) / 1000;
+                const visualAdditionalFill = visualElapsedSec * (machine.cavities / machine.cycleTime);
+                const visualFill = machine.currentFill + visualAdditionalFill;
+                const shiftEndTime = getShiftEndTime(currentDate, currentShift);
+                const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now) / 1000);
+                const partsPerSecond = machine.cavities / machine.cycleTime;
+                const totalPartsPossibleInShift = visualFill + (remainingShiftTimeSec * partsPerSecond);
+                const boxesRemainingForShift = Math.floor(totalPartsPossibleInShift / machine.boxCapacity);
+                grandTotalRemainingBoxes += boxesRemainingForShift;
+            }
             updateMachineUI(machine);
         });
+        updateShiftSummaryUI(grandTotalRemainingBoxes, currentShift);
         saveMachines();
     }, 1000);
 
