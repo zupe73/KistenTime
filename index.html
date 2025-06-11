@@ -228,22 +228,25 @@
     } catch (e) { console.error("Firebase konnte nicht initialisiert werden.", e); }
 
     // --- DATENMIGRATION BEIM START ---
-    machines.forEach(machine => {
-        Object.assign(machine, {
-            isPaused: machine.isPaused || false,
-            isFillingManually: machine.isFillingManually || false,
-            lastUpdate: machine.lastUpdate || Date.now(),
-            boxesCompleted: machine.boxesCompleted || 0,
-            boxesCompletedShift: machine.boxesCompletedShift || 0,
-            boxJustBecameFull: machine.boxJustBecameFull || false,
-            bagJustBecameFull: machine.bagJustBecameFull || false,
-            clearanceReminderDue: machine.clearanceReminderDue || false,
-            lastClearedTimestamp: machine.lastClearedTimestamp || Date.now(),
-            lastShiftName: machine.lastShiftName || 'Frühschicht',
-            numberOfBags: machine.numberOfBags || 1,
-            clearanceReminderMinutes: machine.clearanceReminderMinutes || 0
-        });
-    });
+machines = machines.map(machine => {
+    const defaults = {
+        isPaused: false,
+        isFillingManually: false,
+        lastUpdate: Date.now(),
+        boxesCompleted: 0,
+        boxesCompletedShift: 0,
+        lastShiftName: 'Frühschicht',
+        boxJustBecameFull: false,
+        bagJustBecameFull: false,
+        clearanceReminderDue: false,
+        lastClearedTimestamp: Date.now(),
+        numberOfBags: 1,
+        clearanceReminderMinutes: 0
+    };
+    // Erstellt ein neues, sauberes Objekt, das alle Standardwerte hat
+    // und überschreibt sie dann mit den alten, gespeicherten Werten.
+    return { ...defaults, ...machine };
+});
 
     // --- GLOBALE FUNKTIONEN ---
     function saveMachines() { localStorage.setItem('machines', JSON.stringify(machines)); }
