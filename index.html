@@ -81,7 +81,7 @@
     <div class="content-wrapper">
         <h1>Maschinenübersicht</h1>
         <div id="shift-summary-container">
-            Aktuelle Schicht: <strong id="shift-summary-name">---</strong> | Verbleibende Einheiten (Gesamt): <strong id="shift-summary-total">0</strong>
+            Aktuelle Schicht: <strong id="shift-summary-name">---</strong> | Verbleibende Kisten (Gesamt): <strong id="shift-summary-total">0</strong>
         </div>
         <div class="view-switcher">
             <button id="view-detailed-btn" class="active">Detailliert</button>
@@ -138,6 +138,28 @@
     <div class="modal-content">
         <span class="close-button" onclick="closeMachineDetailModal()">&times;</span>
         <div id="machineDetailContent"></div>
+    </div>
+</div>
+  <div id="forecastModal" class="modal">
+    <div class="modal-content">
+        <span class="close-button" onclick="closeForecastModal()">&times;</span>
+        <h2>Auftragsprognose</h2>
+        <input type="hidden" id="forecastMachineId" />
+        <label>Gesamtanzahl der Kisten im Auftrag:<br />
+            <input type="number" id="forecastTotalBoxes" min="1" value="10" />
+        </label>
+        <label>Aktuelle Kistennummer davon:<br />
+            <input type="number" id="forecastCurrentBoxNumber" min="1" value="1" />
+        </label>
+        <label>Füllmenge dieser aktuellen Kiste:<br />
+            <input type="number" id="forecastCurrentFill" min="0" value="0" />
+        </label>
+        <label style="display: inline-flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="forecastRunsOnWeekend" checked /> Läuft am Wochenende
+        </label>
+        <br>
+        <button onclick="calculateForecast()">Prognose berechnen</button>
+        <div id="forecastResult" style="margin-top: 20px; font-size: 1.1em; font-weight: bold;"></div>
     </div>
 </div>
 <script type="module">
@@ -286,6 +308,58 @@
             saveAndRender();
         }
     };
+  // ==================== DIESE DREI FUNKTIONEN HINZUFÜGEN ====================
+
+window.openForecastModal = function(machineId) {
+    document.getElementById('forecastMachineId').value = machineId;
+    document.getElementById('forecastResult').innerHTML = '';
+    // Setzt die Felder auf Standardwerte zurück
+    document.getElementById('forecastTotalBoxes').value = '10';
+    document.getElementById('forecastCurrentBoxNumber').value = '1';
+    document.getElementById('forecastCurrentFill').value = '0';
+    document.getElementById('forecastRunsOnWeekend').checked = true;
+    document.getElementById('forecastModal').style.display = 'block';
+};
+
+window.closeForecastModal = function() {
+    document.getElementById('forecastModal').style.display = 'none';
+};
+
+window.calculateForecast = function() {
+    const machineId = parseInt(document.getElementById('forecastMachineId').value);
+    const machine = machines.find(m => m.id === machineId);
+    if (!machine) return;
+
+    const totalBoxes = parseInt(document.getElementById('forecastTotalBoxes').value) || 0;
+    const currentBoxNumber = parseInt(document.getElementById('forecastCurrentBoxNumber').value) || 1;
+    const currentFill = parseInt(document.getElementById('forecastCurrentFill').value) || 0;
+    const runsOnWeekend = document.getElementById('forecastRunsOnWeekend').checked;
+    if (totalBoxes <= 0 || currentBoxNumber > totalBoxes) return alert('Ungültige Auftragsdaten.');
+
+    const partsPerSecond = machine.cavities / machine.cycleTime;
+    const remainingPartsInCurrentBox = Math.max(0, machine.boxCapacity - currentFill);
+    let secondsToProduce = (remainingPartsInCurrentBox / partsPerSecond) + ((totalBoxes - currentBoxNumber) * machine.boxCapacity) / partsPerSecond;
+    
+    let finalCompletionDate = new Date();
+    while (secondsToProduce > 0) {
+        const currentDay = finalCompletionDate.getDay();
+        const currentHour = finalCompletionDate.getHours();
+        const isPauseHour = !runsOnWeekend && ((currentDay === 6 && currentHour >= 4) || currentDay === 0 || (currentDay === 1 && currentHour < 7));
+        
+        if (isPauseHour) {
+            finalCompletionDate.setHours(finalCompletionDate.getHours() + 1);
+            continue;
+        }
+        
+        const timeStep = Math.min(secondsToProduce, 3600);
+        secondsToProduce -= timeStep;
+        finalCompletionDate.setSeconds(finalCompletionDate.getSeconds() + timeStep);
+    }
+
+    const formattedDate = finalCompletionDate.toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' });
+    document.getElementById('forecastResult').innerHTML = `Voraussichtlich fertig am:<br><strong>${formattedDate} Uhr</strong>`;
+};
+// ==========================================================================
     
     window.openMachineDetailModal = (machineId) => {
         const machine = machines.find(m => m.id === machineId);
@@ -418,6 +492,7 @@
             <div class="machine-actions">
                 <button class="pause" onclick="togglePause(${machine.id})">Anhalten</button>
                 <button class="edit" onclick="openEditModal(${machine.id})">Bearbeiten</button>
+                 <button class="forecast" onclick="openForecastModal(${machine.id})">Prognose</button>
                 <button class="delete" onclick="deleteMachine(${machine.id})">Löschen</button>
             </div>`;
         container.appendChild(div);
@@ -510,7 +585,7 @@
                     notificationOverlay.style.display = 'flex';
                     notificationOverlay.className = 'notification-overlay clearance-msg';
                     notifText.textContent = 'Abräumen!';
-                    notifButton.textContent = 'Quittiert';
+                    notifButton.textContent = 'Quittieren';
                     notifButton.onclick = (e) => resetClearanceReminder(machine.id, e);
                 } else if (machine.boxJustBecameFull) {
                     alertActive = true;
@@ -564,7 +639,7 @@
                         const partsForRemainingBoxes = (boxesRemainingForShift * machine.boxCapacity) - (machine.currentFill % machine.boxCapacity);
                         const timeForRemainingBoxes = partsForRemainingBoxes / partsPerSecond;
                         const lastBoxTime = new Date(now.getTime() + timeForRemainingBoxes * 1000);
-                        lastBoxInfoEl.textContent = `Letzte Kiste d. Schicht: ${formatTimeOfDay(lastBoxTime)} Uhr`;
+                        lastBoxInfoEl.textContent = `Letzte Kiste der Schicht: ${formatTimeOfDay(lastBoxTime)} Uhr`;
                     } else {
                         lastBoxInfoEl.textContent = '';
                     }
