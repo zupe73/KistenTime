@@ -47,7 +47,7 @@ self.addEventListener('notificationclick', event => {
 // ========================================================
 
 // WICHTIG: Version erhöht, um den Browser zu zwingen, den neuen Service Worker zu laden.
-const CACHE_NAME = 'kistentimer-cache-v14';
+const CACHE_NAME = 'kistentimer-cache-v15';
 
 const APP_SHELL_URLS = [
   './',
