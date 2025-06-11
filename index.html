@@ -291,8 +291,8 @@
         if (!machine) return;
         const modal = document.getElementById('machineDetailModal');
         const contentContainer = document.getElementById('machineDetailContent');
-        contentContainer.innerHTML = `<div id="machine-modal-${machine.id}"></div>`; // Leerer Container
-        renderDetailedMachine(machine, contentContainer.firstElementChild); // Rendert in den leeren Container
+        contentContainer.innerHTML = `<div id="machine-modal-${machine.id}"></div>`;
+        renderDetailedMachine(machine, contentContainer.firstElementChild);
         modal.style.display = 'block';
         updateMachineUI(machine);
     };
@@ -302,6 +302,36 @@
         modal.style.display = 'none';
         document.getElementById('machineDetailContent').innerHTML = '';
     };
+    
+    // --- PUSH BENACHRICHTIGUNGEN ---
+    window.initPushNotifications = () => {
+        if (!messaging) return alert("Push-Benachrichtigungen sind nicht verfügbar.");
+        Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+                navigator.serviceWorker.ready.then((registration) => {
+                    const vapidKey = 'BMehjID94jiDYaX4StW5gIoV9Ct9PrMqT3gZtoyl5mfOE4aiOyINP6n0D4RmHQvoJGi3Ll0gPPh0wYHomQkZmuU';
+                    getToken(messaging, { vapidKey: vapidKey, serviceWorkerRegistration: registration }).then((currentToken) => {
+                        if (currentToken) {
+                            pushToken = currentToken;
+                            localStorage.setItem('pushToken', currentToken);
+                            alert('Push-Benachrichtigungen erfolgreich aktiviert!');
+                        }
+                    }).catch((err) => console.error('Fehler beim Abrufen des Tokens:', err));
+                });
+            }
+        });
+    }
+    async function schedulePushNotificationsFor(machine) {
+        if (!pushToken) return;
+        const partsPerSecond = machine.cavities / machine.cycleTime;
+        const secondsUntilFull = (machine.boxCapacity - machine.currentFill) / partsPerSecond;
+        let scheduledDelaySeconds = Math.max(1, secondsUntilFull - 60);
+        const functionUrl = 'https://schedulenotification-xxhao7ipkq-uc.a.run.app';
+        try {
+            await fetch(functionUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: pushToken, machineName: machine.name, secondsUntilFull: scheduledDelaySeconds }), keepalive: true });
+        } catch (error) { console.error("Fehler bei der Planungs-Anfrage:", error); }
+    }
+
 
     // --- HELPER-FUNKTIONEN ---
     function addFillInputListeners(div, machine) {
@@ -310,21 +340,55 @@
         fillInput.addEventListener('focus', () => { machine.isFillingManually = true; });
         fillInput.addEventListener('blur', (e) => {
             machine.isFillingManually = false;
-            const newValue = parseInt(e.target.value, 10) || 0;
-            const bagCapacity = machine.boxCapacity / (machine.numberOfBags || 1);
-            const currentTotalFill = Math.floor(machine.currentFill / bagCapacity) * bagCapacity;
-            machine.currentFill = currentTotalFill + Math.min(bagCapacity, Math.max(0, newValue));
+            let newValue = parseInt(e.target.value, 10) || 0;
+            const isBagsView = viewMode === 'bags' && machine.numberOfBags > 1;
+            const capacity = isBagsView ? machine.boxCapacity / machine.numberOfBags : machine.boxCapacity;
+            newValue = Math.min(capacity, Math.max(0, newValue));
+            if (isBagsView) {
+                const bagCapacity = capacity;
+                const currentBagIndex = Math.floor(machine.currentFill / bagCapacity);
+                machine.currentFill = (currentBagIndex * bagCapacity) + newValue;
+            } else {
+                machine.currentFill = newValue;
+            }
             machine.lastUpdate = Date.now();
             updateMachineUI(machine);
             saveMachines();
         });
     }
     
-    function getCurrentShift(now) { /* ... (unverändert) ... */ }
-    function getShiftEndTime(currentDate, shift) { /* ... (unverändert) ... */ }
-    function formatTime(sec) { /* ... (unverändert) ... */ }
-    function formatTimeOfDay(date) { /* ... (unverändert) ... */ }
+    function getCurrentShift(now) {
+        const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+        return shifts.find(shift => {
+            const startTotalMinutes = shift.startHour * 60 + shift.startMinute;
+            const endTotalMinutes = shift.endHour * 60 + shift.endMinute;
+            return shift.overnight ? (currentTotalMinutes >= startTotalMinutes || currentTotalMinutes < endTotalMinutes) : (currentTotalMinutes >= startTotalMinutes && currentTotalMinutes < endTotalMinutes);
+        }) || { name: "Außerhalb Schicht" };
+    }
 
+    function getShiftEndTime(currentDate, shift) {
+        if (!shift || typeof shift.endHour !== 'number') { return new Date(currentDate); }
+        const endDate = new Date(currentDate);
+        endDate.setHours(shift.endHour, shift.endMinute || 0, 0, 0);
+        if (endDate <= currentDate) endDate.setDate(endDate.getDate() + 1);
+        return endDate;
+    }
+
+    function formatTime(sec) {
+        if (sec === Infinity || isNaN(sec) || sec < 0) return '---';
+        sec = Math.round(sec);
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = sec % 60;
+        if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m`;
+        return `${m}m ${String(s).padStart(2, '0')}s`;
+    }
+    
+    function formatTimeOfDay(date) {
+        if (!(date instanceof Date) || isNaN(date)) return '--:--';
+        return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    }
+    
     // --- RENDERING ---
     function renderAllMachines() {
         const overviewContainer = document.getElementById('overview-machine-list');
@@ -363,7 +427,8 @@
     }
 
     function renderDetailedMachine(machine, container) {
-        const div = container.id.startsWith('machine-modal') ? container : document.createElement('div');
+        const isModal = container.id.startsWith('machine-modal');
+        const div = isModal ? container : document.createElement('div');
         div.id = `machine-o-${machine.id}`;
         div.className = 'machine';
         div.dataset.id = machine.id;
@@ -374,7 +439,7 @@
             <div class="progress-container"><div class="progress-bar"></div></div>
             <div class="time-info"></div><div class="shift-info"></div><div class="last-box-info"></div>
             <div class="notification-overlay"><div class="notification-text"></div><button class="notification-button"></button></div>`;
-        if (!container.id.startsWith('machine-modal')) container.appendChild(div);
+        if (!isModal) container.appendChild(div);
         addFillInputListeners(div, machine);
         const clearanceButton = div.querySelector('.clearance-button');
         if (clearanceButton) clearanceButton.addEventListener('click', (e) => resetClearanceReminder(machine.id, e));
@@ -395,6 +460,8 @@
         container.appendChild(div);
         const clearanceButton = div.querySelector('.clearance-button');
         if (clearanceButton) clearanceButton.addEventListener('click', (e) => resetClearanceReminder(machine.id, e));
+        const overlay = div.querySelector('.notification-overlay');
+        overlay.addEventListener('click', (e) => e.stopPropagation()); // Verhindert Modal-Öffnen
     }
     
     function updateMachineUI(machine) {
@@ -405,14 +472,16 @@
         let fillForCalc = officialFill;
         let titleSuffix = "";
 
-        const isBagsRelevant = (viewMode === 'bags' || (document.getElementById(`machine-modal-${machine.id}`) && machine.numberOfBags > 1)) && machine.numberOfBags > 1;
+        const isModal = !!document.getElementById(`machine-modal-${machine.id}`);
+        const isBagsRelevant = (viewMode === 'bags' || (isModal && machine.numberOfBags > 1)) && machine.numberOfBags > 1;
+        
         if (isBagsRelevant) {
             const bagCapacity = machine.boxCapacity / machine.numberOfBags;
             const currentBagNumber = Math.min(machine.numberOfBags, Math.floor(officialFill / bagCapacity) + 1);
             fillForCalc = officialFill % bagCapacity;
             if (fillForCalc === 0 && officialFill > 0) fillForCalc = bagCapacity;
             capacityForCalc = bagCapacity;
-            titleSuffix = ` (Beutel ${currentBagNumber}/${machine.numberOfBags})`;
+            if(machine.numberOfBags > 1) titleSuffix = ` (Beutel ${currentBagNumber}/${machine.numberOfBags})`;
         }
         
         const visualElapsedSec = (now.getTime() - machine.lastUpdate) / 1000;
@@ -430,30 +499,36 @@
             if (nameDiv) nameDiv.textContent = machine.name + (prefix === 'a' ? '' : titleSuffix);
 
             const notificationOverlay = machineDiv.querySelector('.notification-overlay');
-            const notifText = notificationOverlay.querySelector('.notification-text');
-            const notifButton = notificationOverlay.querySelector('.notification-button');
-            if (machine.clearanceReminderDue) {
-                notificationOverlay.style.display = 'flex';
-                notificationOverlay.className = 'notification-overlay clearance-msg';
-                notifText.textContent = 'Abräumen!';
-                notifButton.textContent = 'Quittiert';
-                notifButton.onclick = (e) => resetClearanceReminder(machine.id, e);
-            } else if (machine.boxJustBecameFull) {
-                notificationOverlay.style.display = 'flex';
-                notificationOverlay.className = 'notification-overlay box-full-msg';
-                notifText.textContent = 'Kiste voll!';
-                notifButton.textContent = 'Quittieren';
-                notifButton.onclick = (e) => acknowledgeBoxFull(machine.id, e);
-            } else if (machine.bagJustBecameFull) {
-                notificationOverlay.style.display = 'flex';
-                notificationOverlay.className = 'notification-overlay bag-full-msg';
-                notifText.textContent = 'Beutel voll!';
-                notifButton.textContent = 'Quittieren';
-                notifButton.onclick = (e) => acknowledgeBagFull(machine.id, e);
-            } else {
-                notificationOverlay.style.display = 'none';
+            if (notificationOverlay) {
+                const notifText = notificationOverlay.querySelector('.notification-text');
+                const notifButton = notificationOverlay.querySelector('.notification-button');
+                let alertActive = false;
+                if (machine.clearanceReminderDue) {
+                    alertActive = true;
+                    notificationOverlay.style.display = 'flex';
+                    notificationOverlay.className = 'notification-overlay clearance-msg';
+                    notifText.textContent = 'Abräumen!';
+                    notifButton.textContent = 'Quittiert';
+                    notifButton.onclick = (e) => resetClearanceReminder(machine.id, e);
+                } else if (machine.boxJustBecameFull) {
+                    alertActive = true;
+                    notificationOverlay.style.display = 'flex';
+                    notificationOverlay.className = 'notification-overlay box-full-msg';
+                    notifText.textContent = 'Kiste voll!';
+                    notifButton.textContent = 'Quittieren';
+                    notifButton.onclick = (e) => acknowledgeBoxFull(machine.id, e);
+                } else if (machine.bagJustBecameFull) {
+                    alertActive = true;
+                    notificationOverlay.style.display = 'flex';
+                    notificationOverlay.className = 'notification-overlay bag-full-msg';
+                    notifText.textContent = 'Beutel voll!';
+                    notifButton.textContent = 'Quittieren';
+                    notifButton.onclick = (e) => acknowledgeBagFull(machine.id, e);
+                } else {
+                    notificationOverlay.style.display = 'none';
+                }
+                machineDiv.classList.toggle('alert-active', alertActive);
             }
-            machineDiv.classList.toggle('alert-active', machine.clearanceReminderDue || machine.boxJustBecameFull || machine.bagJustBecameFull);
             machineDiv.classList.toggle('paused', !!machine.isPaused);
 
             if (prefix === 'a' || prefix === 'modal' || (prefix === 'o' && viewMode !== 'compact')) {
@@ -472,17 +547,17 @@
                     const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
                     const totalPartsInShift = machine.currentFill + (remainingShiftTimeSec * partsPerSecond);
                     const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor(totalPartsInShift / machine.boxCapacity);
-                    const unit = prefix !== 'a' && viewMode === 'bags' ? 'Beutel' : 'Kisten';
-                    const remainingUnits = unit === 'Beutel' ? Math.floor(totalPartsInShift / (machine.boxCapacity / machine.numberOfBags)) : boxesRemainingForShift;
+                    const unit = (viewMode === 'bags' && prefix !== 'a') ? 'Beutel' : 'Kisten';
+                    const remainingUnits = unit === 'Beutel' ? (Math.floor(totalPartsInShift / (machine.boxCapacity / machine.numberOfBags)) - Math.floor(machine.currentFill / (machine.boxCapacity/machine.numberOfBags))) : boxesRemainingForShift;
                     shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${remainingUnits} ${unit} bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
                     
                     const lastBoxInfoEl = machineDiv.querySelector('.last-box-info');
-                    if(lastBoxInfoEl) {
-                        if (boxesRemainingForShift > 0) {
+                    if (lastBoxInfoEl) {
+                        if (!machine.isPaused && boxesRemainingForShift > 0) {
                             const partsForRemainingBoxes = (boxesRemainingForShift * machine.boxCapacity) - (machine.currentFill % machine.boxCapacity);
                             const timeForRemainingBoxes = partsForRemainingBoxes / partsPerSecond;
                             const lastBoxTime = new Date(now.getTime() + timeForRemainingBoxes * 1000);
-                            lastBoxInfoEl.textContent = `Letzte Kiste der Schicht ca. um: ${formatTimeOfDay(lastBoxTime)} Uhr`;
+                            lastBoxInfoEl.textContent = `Letzte Kiste d. Schicht: ${formatTimeOfDay(lastBoxTime)} Uhr`;
                         } else {
                             lastBoxInfoEl.textContent = '';
                         }
@@ -520,7 +595,14 @@
     }
 
     // --- HAUPT-UPDATE-SCHLEIFE ---
-    function updateShiftSummaryUI(total, shift) { /* ... */ }
+    function updateShiftSummaryUI(total, shift) {
+        const nameEl = document.getElementById('shift-summary-name');
+        const totalEl = document.getElementById('shift-summary-total');
+        if (nameEl && totalEl) {
+            nameEl.textContent = shift.name;
+            totalEl.textContent = total;
+        }
+    }
 
     setInterval(() => {
         const now = Date.now();
@@ -533,7 +615,6 @@
                 const fillBefore = machine.currentFill;
                 const elapsedSec = (now - machine.lastUpdate) / 1000;
                 const fullCycles = Math.floor(elapsedSec / machine.cycleTime);
-
                 if (fullCycles > 0) {
                     machine.currentFill += fullCycles * machine.cavities;
                     machine.lastUpdate += fullCycles * machine.cycleTime * 1000;
@@ -553,7 +634,8 @@
                     machine.boxesCompletedShift++;
                     wasBoxJustFilled = true;
                     machine.boxJustBecameFull = true;
-                    machine.bagJustBecameFull = false; // Box full overrides bag full
+                    machine.bagJustBecameFull = false;
+                    machine.lastClearedTimestamp = now;
                 }
                 if (wasBoxJustFilled) {
                     if (audio && typeof audio.play === 'function') audio.play().catch(e => console.warn("Audio-Wiedergabe fehlgeschlagen:", e));
@@ -567,16 +649,84 @@
             }
 
             if (!machine.isPaused) {
-                // ... (Berechnung für grandTotalRemainingUnits) ...
+                const partsPerSecond = machine.cavities / machine.cycleTime;
+                const visualElapsedSec = (now - machine.lastUpdate) / 1000;
+                const visualAdditionalFill = visualElapsedSec * partsPerSecond;
+                const visualFill = machine.currentFill + visualAdditionalFill;
+                const shiftEndTime = getShiftEndTime(currentDate, currentShift);
+                const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now) / 1000);
+                const totalPartsInShift = visualFill + (remainingShiftTimeSec * partsPerSecond);
+                const unitCapacity = viewMode === 'bags' && machine.numberOfBags > 1 ? (machine.boxCapacity / machine.numberOfBags) : machine.boxCapacity;
+                const remainingUnits = Math.floor(totalPartsInShift / unitCapacity) - Math.floor(visualFill / unitCapacity);
+                grandTotalRemainingUnits += remainingUnits;
             }
             updateMachineUI(machine);
         });
+        
         updateShiftSummaryUI(grandTotalRemainingUnits, currentShift);
         saveMachines();
     }, 1000);
 
     // --- INITIALISIERUNG ---
-    document.addEventListener('DOMContentLoaded', () => { /* ... */ });
+    document.addEventListener('DOMContentLoaded', () => {
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./firebase-messaging-sw.js')
+                    .then(reg => console.log('Service Worker registriert:', reg.scope))
+                    .catch(err => console.error('Service Worker Registrierung fehlgeschlagen:', err));
+            });
+        }
+
+        function unlockAudio() {
+            if (audio && audio.paused) {
+                audio.play().catch(() => {});
+                audio.pause();
+            }
+            document.body.removeEventListener('click', unlockAudio);
+            document.body.removeEventListener('touchstart', unlockAudio);
+        }
+        document.body.addEventListener('click', unlockAudio);
+        document.body.addEventListener('touchstart', unlockAudio);
+
+        const detailedBtn = document.getElementById('view-detailed-btn');
+        const compactBtn = document.getElementById('view-compact-btn');
+        const bagsBtn = document.getElementById('view-bags-btn');
+        const allViewBtns = [detailedBtn, compactBtn, bagsBtn];
+
+        function switchView(newMode, clickedBtn) {
+            if (viewMode === newMode) return;
+            viewMode = newMode;
+            allViewBtns.forEach(btn => btn.classList.remove('active'));
+            clickedBtn.classList.add('active');
+            renderAllMachines();
+        }
+
+        detailedBtn.addEventListener('click', () => switchView('detailed', detailedBtn));
+        compactBtn.addEventListener('click', () => switchView('compact', compactBtn));
+        bagsBtn.addEventListener('click', () => switchView('bags', bagsBtn));
+        
+        const detailModal = document.getElementById('machineDetailModal');
+        detailModal.addEventListener('click', function(event) {
+            if (event.target === detailModal) {
+                closeMachineDetailModal();
+            }
+        });
+
+        new Sortable(document.getElementById('overview-machine-list'), {
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            delay: 200,
+            delayOnTouchOnly: true,
+            onEnd: function (evt) {
+                machines.splice(evt.newIndex, 0, machines.splice(evt.oldIndex, 1)[0]);
+                saveMachines();
+            }
+        });
+
+        renderAllMachines();
+        showPage('overview-page');
+    });
 </script>
+
 </body>
 </html>
