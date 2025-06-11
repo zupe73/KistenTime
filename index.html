@@ -823,6 +823,57 @@ window.calculateForecast = function() {
 
         renderAllMachines();
         showPage('overview-page');
+let touchStartX = 0;
+let touchStartY = 0;
+
+document.body.addEventListener('touchstart', event => {
+    // Speichere die Startposition des ersten Fingers
+    touchStartX = event.touches[0].clientX;
+    touchStartY = event.touches[0].clientY;
+}, { passive: true }); // { passive: true } verbessert die Scroll-Performance
+
+document.body.addEventListener('touchend', event => {
+    // Wenn der Startpunkt 0 ist, hat der Touch nicht hier begonnen.
+    if (touchStartX === 0) {
+        return;
+    }
+
+    // Erfasse die Endposition
+    const touchEndX = event.changedTouches[0].clientX;
+    const touchEndY = event.changedTouches[0].clientY;
+
+    // Berechne die Distanz in X- und Y-Richtung
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
+
+    // Definiere eine Mindestdistanz für einen gültigen Swipe
+    const minSwipeDistance = 50;
+
+    // Prüfe, ob die horizontale Bewegung größer als die vertikale war
+    // So wird ein versehentlicher Seitenwechsel beim Scrollen verhindert
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        
+        // Prüfe, ob die Mindestdistanz erreicht wurde
+        if (Math.abs(deltaX) > minSwipeDistance) {
+            
+            // Finde heraus, welche Seite gerade aktiv ist
+            const currentPageId = document.querySelector('.page.active').id;
+
+            // Swipe nach links (von Übersicht zu Verwaltung)
+            if (deltaX < 0 && currentPageId === 'overview-page') {
+                showPage('admin-page');
+            } 
+            // Swipe nach rechts (von Verwaltung zu Übersicht)
+            else if (deltaX > 0 && currentPageId === 'admin-page') {
+                showPage('overview-page');
+            }
+        }
+    }
+
+    // Setze die Startposition für den nächsten Touch zurück
+    touchStartX = 0;
+    touchStartY = 0;
+});
     });
 </script>
 
