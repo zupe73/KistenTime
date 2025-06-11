@@ -50,53 +50,13 @@
   .machine-compact { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; }
   .machine-compact:hover { transform: translateY(-3px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
   .machine-compact .machine-name-text { font-weight: bold; font-size: 0.9em; margin-bottom: 8px; }
-  
-
-.progress-circle { 
-    width: 80px; 
-    height: 80px; 
-    border-radius: 50%; 
-    display: grid; 
-    place-items: center;
-    position: relative; 
-    background: conic-gradient( var(--progress-color, #4CAF50) calc(var(--progress-percent, 0) * 1%), #e9ecef 0 ); 
-}
-
-
-.progress-circle::before { 
-    content: ''; 
-    position: absolute; 
-    width: 66px; 
-    height: 66px; 
-    background: #fff; 
-    border-radius: 50%;
-    
-}
-
-/* Der Text-Container */
-.progress-circle .time-display { 
-    position: relative; 
-    z-index: 2;         
-    display: flex; 
-    flex-direction: column; 
-    align-items: center; 
-    justify-content: center; 
-    line-height: 1.1; 
-}
-
-.progress-circle .time-remaining { 
-    font-size: 0.95em; 
-    font-weight: bold; 
-    color: #333; 
-}
-
-.progress-circle .time-of-day { 
-    font-size: 0.75em; 
-    font-weight: normal; 
-    color: #555; 
-}
+  .progress-circle { width: 80px; height: 80px; border-radius: 50%; display: flex; justify-content: center; align-items: center; position: relative; background: conic-gradient( var(--progress-color, #4CAF50) calc(var(--progress-percent, 0) * 1%), #e9ecef 0 ); }
+  .progress-circle::before { content: ''; position: absolute; width: 66px; height: 66px; background: #fff; border-radius: 50%; }
+  .progress-circle .time-display { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
+  .progress-circle .time-remaining { font-size: 0.95em; font-weight: bold; color: #333; }
+  .progress-circle .time-of-day { font-size: 0.75em; font-weight: normal; color: #555; }
   .machine-compact .fill-level { margin-top: 8px; font-size: 0.9em; font-weight: bold; color: #555; }
-  .notification-overlay { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; color: white; z-index: 2; border-radius: 0px; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 1.4em; font-weight: bold; padding: 10px; }
+  .notification-overlay { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; color: white; z-index: 2; border-radius: 8px; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 1.4em; font-weight: bold; padding: 10px; }
   .notification-overlay.box-full-msg { background-color: rgba(211, 47, 47, 0.9); }
   .notification-overlay.bag-full-msg { background-color: rgba(48, 79, 254, 0.9); }
   .notification-overlay.clearance-msg { background-color: rgba(251, 140, 0, 0.95); }
@@ -228,25 +188,22 @@
     } catch (e) { console.error("Firebase konnte nicht initialisiert werden.", e); }
 
     // --- DATENMIGRATION BEIM START ---
-machines = machines.map(machine => {
-    const defaults = {
-        isPaused: false,
-        isFillingManually: false,
-        lastUpdate: Date.now(),
-        boxesCompleted: 0,
-        boxesCompletedShift: 0,
-        lastShiftName: 'Frühschicht',
-        boxJustBecameFull: false,
-        bagJustBecameFull: false,
-        clearanceReminderDue: false,
-        lastClearedTimestamp: Date.now(),
-        numberOfBags: 1,
-        clearanceReminderMinutes: 0
-    };
-    // Erstellt ein neues, sauberes Objekt, das alle Standardwerte hat
-    // und überschreibt sie dann mit den alten, gespeicherten Werten.
-    return { ...defaults, ...machine };
-});
+    machines.forEach(machine => {
+        Object.assign(machine, {
+            isPaused: machine.isPaused || false,
+            isFillingManually: machine.isFillingManually || false,
+            lastUpdate: machine.lastUpdate || Date.now(),
+            boxesCompleted: machine.boxesCompleted || 0,
+            boxesCompletedShift: machine.boxesCompletedShift || 0,
+            boxJustBecameFull: machine.boxJustBecameFull || false,
+            bagJustBecameFull: machine.bagJustBecameFull || false,
+            clearanceReminderDue: machine.clearanceReminderDue || false,
+            lastClearedTimestamp: machine.lastClearedTimestamp || Date.now(),
+            lastShiftName: machine.lastShiftName || 'Frühschicht',
+            numberOfBags: machine.numberOfBags || 1,
+            clearanceReminderMinutes: machine.clearanceReminderMinutes || 0
+        });
+    });
 
     // --- GLOBALE FUNKTIONEN ---
     function saveMachines() { localStorage.setItem('machines', JSON.stringify(machines)); }
@@ -584,60 +541,54 @@ window.calculateForecast = function() {
     
    function updateMachineUI(machine) {
     const now = new Date();
-    // KORREKTUR: partsPerSecond wird sofort am Anfang definiert, um den ReferenceError zu beheben.
-    const partsPerSecond = machine.cavities / machine.cycleTime;
-
-    // 1. Berechne den visuellen "Echtzeit"-Füllstand für eine flüssige Anzeige
+    
+    // Basis-Berechnung für den visuellen Fortschritt
     const visualElapsedSec = (now.getTime() - machine.lastUpdate) / 1000;
-    const visualAdditionalFill = visualElapsedSec * partsPerSecond;
-    const visualBaseFill = machine.currentFill + visualAdditionalFill;
+    const visualAdditionalFill = visualElapsedSec * (machine.cavities / machine.cycleTime);
+    const visualFill = machine.currentFill + visualAdditionalFill;
 
-    // 2. Bereite die Variablen für die Anzeige vor
-    let capacityForDisplay = machine.boxCapacity;
-    let fillForDisplay = visualBaseFill;
-    let titleSuffix = "";
+    // Logik zur Bestimmung der Werte basierend auf der Ansicht (Beutel oder Kiste)
+    let capacityForCalc = machine.boxCapacity;
+    let fillForCalc = visualFill; // Wir nutzen den flüssigen visuellen Wert für die Anzeige
+    let titleSuffix = ""; 
 
-    // 3. Passe die Variablen an, wenn die Beutel-Ansicht oder das Modal aktiv ist
-    const isBagView = (viewMode === 'bags' || (document.getElementById('machineDetailModal').style.display === 'block' && machine.numberOfBags > 1));
-
-    if (isBagView && machine.numberOfBags > 1) {
+    if (viewMode === 'bags' && machine.numberOfBags > 1) {
         const bagCapacity = machine.boxCapacity / machine.numberOfBags;
-        const currentBagNumber = Math.min(machine.numberOfBags, Math.floor(visualBaseFill / bagCapacity) + 1);
-
-        fillForDisplay = visualBaseFill % bagCapacity;
-        if (fillForDisplay === 0 && visualBaseFill > 0) {
-            fillForDisplay = bagCapacity;
+        const currentFillInBox = visualFill;
+        const currentBagNumber = Math.min(machine.numberOfBags, Math.floor(currentFillInBox / bagCapacity) + 1);
+        
+        fillForCalc = currentFillInBox % bagCapacity;
+        if (fillForCalc === 0 && currentFillInBox > 0) {
+            fillForCalc = bagCapacity;
         }
 
-        capacityForDisplay = bagCapacity;
+        capacityForCalc = bagCapacity;
         titleSuffix = ` (Beutel ${currentBagNumber}/${machine.numberOfBags})`;
     }
 
-    // 4. Berechne die finalen Anzeigewerte basierend auf den vorbereiteten Variablen
-    const secondsLeft = machine.isPaused ? Infinity : (capacityForDisplay - fillForDisplay) / partsPerSecond;
-    const progressPercent = (fillForDisplay / capacityForDisplay) * 100;
+    const partsPerSecond = machine.cavities / machine.cycleTime;
+    const secondsLeft = machine.isPaused ? Infinity : (capacityForCalc - fillForCalc) / partsPerSecond;
+    const progressPercent = (fillForCalc / capacityForCalc) * 100;
     const currentShift = getCurrentShift(now);
 
-    // 5. Aktualisiere die UI für alle möglichen Orte (Admin, Übersicht, Modal)
+    // ==================== KORREKTUR 1: 'modal' als Ziel hinzufügen ====================
     ['a', 'o', 'modal'].forEach(prefix => {
         const machineDiv = document.getElementById(`machine-${prefix}-${machine.id}`);
         if (!machineDiv) return;
 
-        // Name der Maschine aktualisieren (mit Beutel-Zusatz, außer im Admin-Bereich)
         const nameDiv = machineDiv.querySelector('.machine-name-text');
         if(nameDiv) nameDiv.textContent = machine.name + (prefix === 'a' ? '' : titleSuffix);
 
-        // Zustands-Klassen umschalten (Voll, Pausiert)
         machineDiv.classList.toggle('box-full', !!machine.boxJustBecameFull);
         machineDiv.classList.toggle('paused', !!machine.isPaused);
         const notificationOverlay = machineDiv.querySelector('.notification-overlay');
         if (notificationOverlay) notificationOverlay.style.display = machine.boxJustBecameFull ? 'flex' : 'none';
 
-        // Logik für alle "großen" Ansichten (Admin, Detail, Beutel, Modal)
-        if (prefix === 'a' || prefix === 'modal' || (prefix === 'o' && (viewMode === 'detailed' || viewMode === 'bags'))) {
+        // ============ KORREKTUR 2: Logik für 'modal' explizit einschließen ===========
+        if (prefix === 'a' || (prefix === 'o' && viewMode === 'detailed') || prefix === 'modal' || (prefix === 'o' && viewMode === 'bags')) {
             const timeDiv = machineDiv.querySelector('.time-info');
             if (timeDiv) timeDiv.textContent = machine.isPaused ? 'Pausiert' : `Restzeit: ${formatTime(secondsLeft)} | Voll: ${formatTimeOfDay(new Date(now.getTime() + secondsLeft * 1000))} Uhr`;
-
+            
             const progressBar = machineDiv.querySelector('.progress-bar');
             if (progressBar) {
                 progressBar.style.width = `${Math.min(100, progressPercent)}%`;
@@ -649,25 +600,25 @@ window.calculateForecast = function() {
                 const shiftEndTime = getShiftEndTime(now, currentShift);
                 if (shiftEndTime) {
                     const remainingShiftTimeSec = Math.max(0, (shiftEndTime.getTime() - now.getTime()) / 1000);
-                    const totalPartsPossibleInShift = visualBaseFill + (remainingShiftTimeSec * partsPerSecond);
+                    // Die Prognose der Restkisten in der Schicht basiert immer auf der ganzen Kiste
+                    const totalPartsPossibleInShift = (machine.currentFill + visualAdditionalFill) + (remainingShiftTimeSec * partsPerSecond);
                     const boxesRemainingForShift = machine.isPaused ? 0 : Math.floor(totalPartsPossibleInShift / machine.boxCapacity);
                     shiftInfoDiv.textContent = `Schicht: ${machine.boxesCompletedShift} Kisten | Ca. ${boxesRemainingForShift} Kisten bis ${formatTimeOfDay(shiftEndTime)} Uhr`;
                 }
             }
 
             const fillInput = machineDiv.querySelector('.fillInput');
-            if (fillInput && !machine.isFillingManually) fillInput.value = Math.floor(fillForDisplay);
-
+            if (fillInput && !machine.isFillingManually) fillInput.value = Math.floor(fillForCalc);
+            
             if (prefix === 'a') {
-                const pauseButton = machineDiv.querySelector('.machine-actions .pause, .machine-actions .resume');
+                const pauseButton = machineDiv.querySelector('.machine-actions button');
                 if (pauseButton) {
                     pauseButton.textContent = machine.isPaused ? 'Fortsetzen' : 'Anhalten';
                     pauseButton.className = machine.isPaused ? 'resume' : 'pause';
                 }
             }
-        } 
-        // Logik nur für die Kompakt-Ansicht
-        else if (prefix === 'o' && viewMode === 'compact') {
+        } else if (prefix === 'o' && viewMode === 'compact') {
+            // Kompakt-Ansicht bleibt unverändert
             const timeRemainingEl = machineDiv.querySelector('.time-remaining');
             const timeOfDayEl = machineDiv.querySelector('.time-of-day');
             if (machine.isPaused) {
